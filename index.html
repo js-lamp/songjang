@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>장수램프 송장번호 검색</title>
+<meta property="og:title" content="장수램프 송장번호 검색">
+<meta property="og:description" content="대리점 코드·이름으로 송장번호와 택배비를 조회하세요">
+<meta property="og:type" content="website">
+<meta name="description" content="장수램프 송장번호 검색 — 대리점별 송장 조회">
+<meta name="theme-color" content="#2a2520">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f1e8; --card:#fffdf8; --ink:#23211c; --sub:#7d7868;
+    --line:#e7e0d2; --amber:#e08a1e; --amber-d:#b86d0c; --amber-soft:#fbeed6;
+    --green:#3f9142; --green-soft:#e4f3e4; --red:#c4452f; --red-soft:#f7e3de;
+    --shadow:0 1px 3px rgba(60,50,30,.08),0 6px 20px rgba(60,50,30,.06);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;padding-bottom:92px}
+  .wrap{max-width:560px;margin:0 auto;padding:0 14px}
+  header{background:linear-gradient(135deg,#2a2620,#3a342a);color:#fff;padding:16px 14px;position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+  header .wrap{display:flex;align-items:center;gap:10px}
+  .backbtn{border:0;background:rgba(255,255,255,.12);color:#fff;width:32px;height:32px;border-radius:9px;font-size:18px;cursor:pointer;flex:none;display:none;align-items:center;justify-content:center}
+  .backbtn.show{display:flex}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--amber);display:grid;place-items:center;font-size:19px;flex:none;box-shadow:0 0 0 3px rgba(224,138,30,.25);cursor:pointer;user-select:none}
+  #titleArea{cursor:pointer;user-select:none}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.3px}
+  header p{margin:1px 0 0;font-size:11.5px;color:#cfc6b4;font-weight:500}
+  .adminbadge{margin-left:auto;font-size:10.5px;font-weight:700;background:var(--amber);color:#23211c;padding:3px 9px;border-radius:20px;display:none}
+  .adminbadge.show{display:inline-block}
+
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--card);border-top:1px solid var(--line);display:flex;box-shadow:0 -2px 14px rgba(60,50,30,.08);padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;border:0;background:none;padding:9px 4px 8px;font-family:inherit;color:var(--sub);font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;position:relative}
+  nav button .ic{font-size:21px;line-height:1}
+  nav button.on{color:var(--amber-d)}
+  nav button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;background:var(--amber);border-radius:0 0 4px 4px}
+
+  section{display:none;padding-top:16px;animation:fade .25s}
+  section.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .card h2{font-size:14px;margin:0 0 4px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .card .desc{font-size:12.5px;color:var(--sub);margin:0 0 12px;line-height:1.45}
+  .num{background:var(--amber);color:#fff;width:20px;height:20px;border-radius:6px;display:inline-grid;place-items:center;font-size:12px;font-weight:800;flex:none}
+
+  label{font-size:12px;font-weight:600;color:var(--sub);display:block;margin:0 0 5px}
+  textarea,input,select{width:100%;font-family:inherit;font-size:14px;border:1.5px solid var(--line);border-radius:10px;padding:10px 11px;background:#fff;color:var(--ink);outline:none}
+  textarea:focus,input:focus,select:focus{border-color:var(--amber)}
+  textarea{resize:vertical;line-height:1.55}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:11px;padding:12px 16px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer;width:100%;transition:transform .05s,filter .15s}
+  .btn:active{transform:scale(.98)}
+  .btn-amber{background:var(--amber);color:#fff;box-shadow:0 3px 10px rgba(224,138,30,.32)}
+  .btn-dark{background:#33302a;color:#fff}
+  .btn-ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+  .btn-sm{padding:8px 12px;font-size:13px;width:auto;border-radius:9px}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  .hint{font-size:11.5px;color:var(--sub);margin-top:8px;line-height:1.5}
+  .note{background:var(--amber-soft);border:1px solid #f0dcb0;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#7a5a1e;line-height:1.5;margin-bottom:14px}
+  .note b{color:var(--amber-d)}
+
+  /* 홈: 영업담당자 */
+  .home-h{text-align:center;margin:10px 0 18px}
+  .home-h .t{font-size:19px;font-weight:800;letter-spacing:-.4px}
+  .home-h .s{font-size:12.5px;color:var(--sub);margin-top:4px}
+  .rep-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .rep-grid-4 .rep-chip{padding:12px 6px;font-size:13px}
+  .rep-grid-4 .rep-chip .nm{font-size:13.5px;font-weight:800}
+  .rep-grid-4 .rep-chip .ct{font-size:10.5px;margin-top:3px}
+  .rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .rep-chip{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:16px 12px;cursor:pointer;text-align:center;box-shadow:var(--shadow);transition:.12s}
+  .rep-chip:active{transform:scale(.97)}
+  .rep-chip .nm{font-size:16px;font-weight:800}
+  .rep-chip .ct{font-size:11.5px;font-weight:700;margin-top:5px;color:var(--amber-d)}
+  .rep-chip .ct.zero{color:var(--sub);font-weight:600}
+  .basis{text-align:center;font-size:11.5px;color:var(--sub);margin:14px 0}
+
+  /* 드롭존 */
+  #dropZone{border:2.5px dashed #d8cfb8;border-radius:13px;padding:24px 16px;text-align:center;cursor:pointer;transition:.18s;background:#fffaf0;outline:none}
+  #dropZone:hover,#dropZone:focus{border-color:var(--amber);background:var(--amber-soft)}
+  #dropZone.drag{border-color:var(--amber);background:var(--amber-soft)}
+  #dropZone .dz-ic{font-size:32px;line-height:1;margin-bottom:6px}
+  #dropZone .dz-main{font-size:14.5px;font-weight:700}
+  #dropZone .dz-sub{font-size:11.5px;color:var(--sub);margin-top:4px;line-height:1.5}
+  #thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  #thumbs .th{position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  #thumbs .th img{width:100%;height:100%;object-fit:cover}
+  #thumbs .th b{position:absolute;left:0;bottom:0;right:0;background:rgba(63,145,66,.92);color:#fff;font-size:9px;text-align:center;padding:1px 0;font-weight:700}
+  .feechk{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .feechk input{width:auto}
+  #ocrStatus{display:none;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--amber);border-radius:11px;padding:12px;margin-top:10px}
+  #ocrStatus.show{display:flex}
+  .spin{width:20px;height:20px;border:3px solid var(--amber-soft);border-top-color:var(--amber);border-radius:50%;animation:rot .8s linear infinite;flex:none}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  #ocrStatus .bar{flex:1;height:6px;background:var(--line);border-radius:4px;overflow:hidden}
+  #ocrStatus .bar span{display:block;height:100%;background:var(--amber);width:0;transition:width .3s}
+
+  .tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:0}
+  .tbl thead th{position:sticky;top:0;background:var(--card);z-index:2;box-shadow:0 1px 0 var(--line)}
+  .tbl th{text-align:left;font-size:11px;color:var(--sub);font-weight:700;padding:6px 5px;border-bottom:2px solid var(--line)}
+  .tbl td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .tbl input,.tbl select{padding:6px 7px;font-size:12.5px;border-radius:7px}
+  .tbl .wb{font-variant-numeric:tabular-nums;font-weight:600}
+  .pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap}
+  .pill.ok{background:var(--green-soft);color:var(--green)}
+  .pill.warn{background:var(--red-soft);color:var(--red)}
+  .pill.mid{background:var(--amber-soft);color:var(--amber-d)}
+  .delx{border:0;background:none;color:var(--red);font-size:17px;cursor:pointer;padding:2px 4px;line-height:1}
+
+  .summary{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+  .stat{flex:1;min-width:78px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px 8px;text-align:center}
+  .stat b{display:block;font-size:20px;color:var(--amber-d);line-height:1.1}
+  .stat span{font-size:10.5px;color:var(--sub);font-weight:600}
+
+  .send-card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
+  .send-card.done{opacity:.55;background:#f3efe6}
+  .send-card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
+  .send-card .store{font-size:15.5px;font-weight:800}
+  .send-card .meta{font-size:11.5px;color:var(--sub);margin-top:1px}
+  .msgbox{background:#f7f3ea;border:1px dashed var(--line);border-radius:10px;padding:10px 11px;font-size:13px;white-space:pre-wrap;line-height:1.55;color:#4a463d;margin-bottom:10px}
+  .send-card .acts{display:flex;gap:8px}
+  .copied-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:#2a2620;color:#fff;padding:11px 20px;border-radius:30px;font-size:13.5px;font-weight:700;opacity:0;transition:.3s;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.3);pointer-events:none}
+  .copied-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .empty{text-align:center;color:var(--sub);font-size:13px;padding:34px 16px}
+  .empty .big{font-size:34px;margin-bottom:8px}
+
+  /* 조회 결과 리스트 */
+  .lk-item{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px}
+  .lk-item .wb{font-weight:700;font-variant-numeric:tabular-nums;font-size:14px}
+  .lk-item .fee{font-weight:800;color:var(--amber-d)}
+  .lk-head{background:var(--amber-soft);border:1px solid #f0dcb0;border-radius:11px;padding:12px 14px;margin-bottom:12px}
+  .lk-head .nm{font-size:16px;font-weight:800}
+  .lk-head .sub{font-size:12px;color:#7a5a1e;margin-top:2px}
+
+  details{border:1px solid var(--line);border-radius:11px;background:#fff;margin-bottom:12px;overflow:hidden}
+  details summary{padding:12px 14px;font-size:13.5px;font-weight:700;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{content:"▾";color:var(--sub)}
+  details[open] summary::after{content:"▴"}
+  details .inner{padding:0 14px 14px}
+  .dealer-line{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .dealer-line .nm{flex:1}
+  .dealer-line .cd{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums}
+
+  /* 비밀번호 모달 */
+  .modal{position:fixed;inset:0;background:rgba(30,26,20,.55);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.show{display:flex}
+  .modal .box{background:var(--card);border-radius:18px;padding:22px 20px;width:100%;max-width:300px;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:center}
+  .modal .box h3{margin:0 0 4px;font-size:16px}
+  .modal .box p{margin:0 0 14px;font-size:12px;color:var(--sub)}
+  #pwDisp{letter-spacing:10px;font-size:26px;font-weight:800;height:36px;margin-bottom:14px;color:var(--amber-d)}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .keypad button{border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:14px 0;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer}
+  .keypad button:active{background:var(--amber-soft)}
+  .keypad button.act{color:var(--amber-d)}
+  .modal .box.shake{animation:shake .4s}
+  @keyframes shake{0%,100%{transform:none}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <button class="backbtn" id="backBtn" onclick="goHome()">←</button>
+    <div class="logo" id="logo">📦</div>
+    <div id="titleArea">
+      <h1>장수램프 송장 발송</h1>
+      <p id="subTitle">영업담당자를 선택하세요</p>
+    </div>
+    <span class="adminbadge" id="adminBadge">관리자</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ===== 홈 ===== -->
+<section id="v-home" class="on">
+  <button class="btn btn-dark" style="margin-top:16px;font-size:15.5px;padding:15px 16px" onclick="showView('lookup')">🔍 대리점 검색 (코드·이름으로 송장 조회)</button>
+  <div id="datePills" style="margin-top:16px"></div>
+  <button class="btn btn-amber" style="margin-top:12px" onclick="goUpload()">📥 송장 올리기 (관리자)</button>
+  <button class="btn btn-ghost" style="margin-top:12px" id="repOpenBtn" onclick="openPwFor(showReps)">👤 담당자 선택</button>
+  <button class="btn btn-ghost" style="margin-top:12px;font-size:13px;padding:11px 16px" onclick="goSetup()">⚙️ 관리자 메뉴 (대리점·클라우드 설정)</button>
+  <div id="repGridWrap" style="display:none;margin-top:14px">
+    <div class="rep-grid-4" id="repGrid"></div>
+  </div>
+  <div class="basis" id="basisHome"></div>
+  <!-- 대리점용 이용 안내 (홈 하단) -->
+  <div style="margin-top:24px;padding:0 8px;color:#5a4a2a">
+    <h3 style="font-size:15px;font-weight:700;margin:0 0 14px;color:#3d2f15">📦 대신택배 송장 검색 방법</h3>
+    <ol style="list-style:none;padding:0;margin:0 0 18px;font-size:13.5px;line-height:1.7;color:#3d2f15">
+      <li style="display:flex;gap:10px;margin-bottom:8px">
+        <span style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--amber);color:white;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-size:12px">1</span>
+        <span>🔍 대리점 검색 버튼을 누릅니다.</span>
+      </li>
+      <li style="display:flex;gap:10px;margin-bottom:8px">
+        <span style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--amber);color:white;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-size:12px">2</span>
+        <span>대리점명과 대리점 코드를 입력합니다.</span>
+      </li>
+      <li style="display:flex;gap:10px">
+        <span style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--amber);color:white;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-size:12px">3</span>
+        <span>화면 아래에 송장번호 목록이 표시됩니다.</span>
+      </li>
+    </ol>
+    <p style="font-size:13px;color:#5a3d10;margin:0">⏰ 송장은 <b>다음 날 아침</b>에 확인 부탁드립니다.</p>
+  </div>
+</section>
+
+<!-- ===== 대리점 조회 ===== -->
+<section id="v-lookup">
+  <div class="card">
+    <h2>🔍 대리점 송장 조회</h2>
+    <p class="desc">본인 대리점 조회를 위해 <b>대리점명과 대리점 코드를 모두</b> 입력해 주세요. 이름은 <b>(주)·주식회사 등을 빼고</b> 입력해도 찾아집니다.</p>
+    <label>대리점명 (우리엔터프라이즈 등록명)</label>
+    <input id="lkName" placeholder="예: 대림전기조명 (주식회사·(주) 생략 가능)" style="margin-bottom:10px">
+    <label>대리점 코드</label>
+    <input id="lkCode" inputmode="numeric" placeholder="예: 23691" style="margin-bottom:12px">
+    <button class="btn btn-amber" onclick="doLookup()">조회하기</button>
+    <div id="lkStatus" style="font-size:11.5px;color:var(--sub);text-align:center;margin-top:10px"></div>
+  </div>
+  <div id="lkResult"></div>
+</section>
+
+<!-- ===== 발송 (담당자별) ===== -->
+<section id="v-send">
+  <div id="sendList"></div>
+</section>
+
+<!-- ===== (관리자) 송장 입력 ===== -->
+<section id="v-input">
+  <div class="note">
+    카톡으로 받은 <b>송장 이미지</b>를 올리면 자동으로 읽어 정리합니다.
+    <b>택배비가 적힌 행만</b> 골라냅니다.
+  </div>
+  <div class="card">
+    <h2><span class="num">1</span> 송장 이미지 올리기</h2>
+    <p class="desc">아래 칸에 이미지를 <b>끌어다 놓거나</b>, 복사한 이미지를 <b>붙여넣기(Ctrl+V)</b> 하세요.</p>
+    <label>발송 날짜</label>
+    <input type="date" id="invoiceDate" style="margin-bottom:12px">
+    <input type="file" id="imgInput" accept="image/*" multiple style="display:none">
+    <div id="dropZone" tabindex="0">
+      <div class="dz-ic">🖼️</div>
+      <div class="dz-main">여기를 눌러 <b>사진 여러 장</b> 선택 · 촬영</div>
+      <div class="dz-sub">📱 폰: 사진첩에서 여러 장 <b>길게 눌러 선택</b> · 💻 PC: 여러 파일 <b>드래그해서 놓기</b> · 붙여넣기(Ctrl+V)도 가능</div>
+    </div>
+    <div id="thumbs"></div>
+    <div id="ocrStatus"><div class="spin"></div><div style="flex:1"><div id="ocrText" style="font-size:12.5px;font-weight:600;margin-bottom:5px">인식 준비 중…</div><div class="bar"><span id="ocrBar"></span></div></div></div>
+    <div id="ocrBlocked" style="display:none;background:var(--red-soft);border:1px solid #e8b6ab;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#9a3a28;line-height:1.55;margin-top:10px">
+      ⚠️ <b>지금 화면(미리보기)에서는 자동 인식이 막혀 있어요.</b> 보안 정책 때문입니다.<br>
+      파일을 <b>내려받아 브라우저에서 열거나 티스토리에 올리면</b> 자동 인식이 됩니다.<br>
+      지금 바로 쓰려면 아래 <b>텍스트로 직접 붙여넣기</b>를 이용하세요. ↓
+    </div>
+    <label class="feechk"><input type="checkbox" id="feeZero"> 택배비 0원·미표기 행도 포함</label>
+    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:2px">⌨️ 텍스트로 직접 붙여넣기</div>
+      <div class="hint" style="margin-top:0;margin-bottom:7px">엑셀·메모에서 복사한 송장 목록을 붙여넣고 정리하면 인식 없이 바로 표가 만들어집니다.</div>
+      <textarea id="pasteBox" rows="3" placeholder="지점명  송장번호  전화  받는분  대리점명  택배비  (한 줄에 한 건씩 / 우리조명 행은 자동 제외)"></textarea>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="parsePasted()">붙여넣은 텍스트 정리하기</button>
+    </div>
+  </div>
+  <div class="card" id="resultCard" style="display:none">
+    <h2><span class="num">2</span> 인식 결과 확인 · 수정</h2>
+    <p class="desc"></p>
+    <div style="font-size:11.5px;color:var(--sub);margin:-4px 0 8px">💡 사진을 한 장씩 더 올려도 같은 날짜에 <b>자동으로 누적</b>됩니다. 아래 <b>"📸 사진 더 추가"</b> 눌러서 계속 이어가세요.</div>
+    <div class="summary" id="summary"></div>
+    <div style="overflow:auto;max-height:60vh;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px"><table class="tbl" id="resultTbl"></table></div>
+    <div id="skipBox" style="display:none"></div>
+    <button class="btn btn-amber btn-sm" style="width:100%;margin-top:10px" onclick="document.getElementById('imgInput').click()">📸 사진 더 추가 (이 날짜에 누적)</button>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="addRow()">＋ 행 직접 추가</button>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="fixExistingFees()">🔧 잘못된 택배비 일괄 보정 (전체 이력)</button>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="removeDuplicates()">🧹 중복 송장번호 정리 (전체 이력)</button>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;color:#c14242" onclick="clearTodayRows()">🗑 이 날짜 데이터 비우기 (다시 시작)</button>
+    <button class="btn btn-amber" style="margin-top:10px" onclick="goHome()">✅ 저장하고 홈으로</button>
+  </div>
+</section>
+
+<!-- ===== (관리자) 대리점 관리 ===== -->
+<section id="v-setup">
+  <div class="note" style="margin-bottom:14px">⚠️ <b>localStorage는 기기·브라우저별로 분리됩니다.</b> PC에서 올린 송장은 폰에서 안 보입니다. 다른 기기와 데이터를 맞추려면 아래 <b>데이터 백업·복원</b>을 이용하세요.</div>
+  <div class="card">
+    <h2>💾 데이터 백업 · 복원 (기기 간 공유)</h2>
+    <p class="desc">PC에서 송장을 올린 뒤 <b>JSON 파일로 내보내기</b> → 카톡으로 폰에 전송 → 폰에서 <b>불러오기</b>로 동일한 데이터 복원.</p>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-amber btn-sm" onclick="exportData()">📤 내보내기 (JSON)</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">📥 불러오기 (JSON)</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
+    <div id="dataStatus" style="font-size:11.5px;color:var(--sub);margin-top:8px;text-align:center"></div>
+  </div>
+  <div class="card">
+    <h2>☁️ 클라우드 동기화 (Firebase)</h2>
+    <p class="desc">한 번 설정하면 PC↔폰 자동 공유. 매번 파일 주고받기 안 해도 됨.</p>
+    <details style="margin-bottom:10px">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--amber-d)">🔧 Firebase 설정 방법 (최초 1회)</summary>
+      <div style="font-size:12px;line-height:1.7;padding:10px;background:#fff8eb;border-radius:8px;margin-top:6px;color:#5a4a2a">
+        <b>1.</b> <a href="https://console.firebase.google.com" target="_blank" style="color:var(--amber-d)">console.firebase.google.com</a> 접속 → Google 로그인<br>
+        <b>2.</b> "프로젝트 추가" → 이름 입력 → 애널리틱스 끄기 → 만들기<br>
+        <b>3.</b> 왼쪽 메뉴 <b>빌드 → Realtime Database</b> → "데이터베이스 만들기"<br>
+        <b>4.</b> 위치 = <b>asia-southeast1</b>, 보안규칙 = <b>"테스트 모드"</b> → 사용 설정<br>
+        <b>5.</b> 상단 DB URL 복사 (https://...firebasedatabase.app/) → 아래에 붙여넣기 → "연결"<br><br>
+        💡 URL은 본인만 알면 외부 접근 안 됨. 영업사원에게도 같은 URL 공유하면 모두 동일 데이터를 봄.
+      </div>
+    </details>
+    <input id="fbUrlInput" placeholder="https://...firebasedatabase.app/" style="font-size:12px;font-family:ui-monospace,monospace">
+    <div class="row" style="margin-top:8px">
+      <button class="btn btn-amber btn-sm" onclick="setFbUrl()">연결</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('fbUrlInput').value='';setFbUrl()">해제</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-amber btn-sm" onclick="pushToCloud()">📤 올리기 (→클라우드)</button>
+      <button class="btn btn-ghost btn-sm" onclick="pullFromCloud()">📥 받기 (←클라우드)</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="copyShareUrl()">🔗 공유 링크 복사 (대리점·영업사원 전달용)</button>
+    <div id="fbStatus" style="font-size:11.5px;color:var(--sub);margin-top:8px;text-align:center;min-height:16px"></div>
+    <div style="font-size:11px;color:var(--sub);margin-top:6px;text-align:center;line-height:1.5">
+      💡 연결되면 송장 올릴 때 <b>자동으로 클라우드에 올라가고</b>, 다른 기기 접속 시 <b>자동으로 받음</b>
+    </div>
+  </div>
+  <div class="card">
+    <h2><span class="num">1</span> 명단 일괄 등록</h2>
+    <p class="desc">형식: <code style="background:#f0ebe0;padding:1px 6px;border-radius:5px;font-size:12px">영업사원,대리점명,코드</code> (코드는 생략 가능, 탭/콤마 구분)</p>
+    <textarea id="dealerImport" rows="6" placeholder="김재수,리온 조명,23720
+박형수,동양전기,10647"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-amber btn-sm" onclick="importDealers(false)">추가 등록</button>
+      <button class="btn btn-ghost btn-sm" onclick="importDealers(true)">전체 교체</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;font-size:12px;color:var(--sub)" onclick="resetDealers()">🔄 내장 기본값(535곳)으로 복원</button>
+  </div>
+  <div class="card">
+    <h2><span class="num">2</span> 메시지 양식</h2>
+    <p class="desc"><code style="background:#f0ebe0;padding:1px 5px;border-radius:5px">[대리점]</code> · <code style="background:#f0ebe0;padding:1px 5px;border-radius:5px">[날짜]</code> · <code style="background:#f0ebe0;padding:1px 5px;border-radius:5px">[내역]</code> 자리에 자동으로 채워집니다. [내역]은 송장번호·받는분·전화·택배비를 건별로 정리합니다.</p>
+    <textarea id="tmplBox" rows="7"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn btn-ghost btn-sm" onclick="saveTemplate()">양식 저장</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:12px;color:var(--sub)" onclick="resetTemplate()">🔄 기본값</button>
+    </div>
+  </div>
+  <details>
+    <summary>등록된 대리점 명단 <span id="dealerCount" style="color:var(--amber-d)"></span></summary>
+    <div class="inner" id="dealerList"></div>
+  </details>
+</section>
+
+</div>
+
+<div class="copied-toast" id="toast">복사됐어요!</div>
+
+<!-- 접속 잠금 게이트 (위장 - 운영종료 안내) -->
+<div id="accessGate" style="position:fixed;inset:0;background:#f5f2ec;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Pretendard',sans-serif">
+  <div style="font-size:48px;margin-bottom:24px;opacity:0.6">📮</div>
+  <h2 style="margin:0 0 14px;font-size:20px;color:#3d2f15;font-weight:700;line-height:1.4">운영 종료</h2>
+  <p style="color:#5a4a2a;font-size:14.5px;line-height:1.7;margin:0;max-width:320px">송장번호는 담당자에게<br>요청해 주세요</p>
+  <input type="text" inputmode="numeric" id="accessCovertInput" autocomplete="off" spellcheck="false"
+         style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;border:none;outline:none;font-size:16px;caret-color:transparent;background:transparent">
+</div>
+
+<!-- 비밀번호 모달 -->
+<div class="modal" id="pwModal">
+  <div class="box" id="pwBox">
+    <h3>🔒 관리자 비밀번호</h3>
+    <p>송장 입력·대리점 관리 진입</p>
+    <div id="pwDisp"></div>
+    <div class="keypad">
+      <button onclick="pwKey('1')">1</button><button onclick="pwKey('2')">2</button><button onclick="pwKey('3')">3</button>
+      <button onclick="pwKey('4')">4</button><button onclick="pwKey('5')">5</button><button onclick="pwKey('6')">6</button>
+      <button onclick="pwKey('7')">7</button><button onclick="pwKey('8')">8</button><button onclick="pwKey('9')">9</button>
+      <button class="act" onclick="pwClose()">취소</button><button onclick="pwKey('0')">0</button><button class="act" onclick="pwDel()">⌫</button>
+    </div>
+  </div>
+</div>
+
+<nav id="nav"></nav>
+
+<script>
+/* ============ 저장소 ============ */
+const KEY={dealers:'jslamp_inv_dealers',tmpl:'jslamp_inv_tmpl',rows:'jslamp_inv_rows'};
+const ADMIN_PW='1233';
+const SP_CODES=['영업1-1','영업1-2','영업1-3','영업1-4','영업1-5','영업1-6','영업1-7'];
+const BUILT_IN_DEALERS=[{sp:'영업1-1',name:'주식회사 플랜룩스',code:'23712'},
+{sp:'영업1-1',name:'광명일렉트릭',code:'23735'},
+{sp:'영업1-1',name:'다온이앤씨',code:'23749'},
+{sp:'영업1-1',name:'문화전기조명',code:'23809'},
+{sp:'영업1-1',name:'주식회사 제이엠라이팅',code:'23813'},
+{sp:'영업1-1',name:'주식회사 원하',code:'23824'},
+{sp:'영업1-1',name:'서원조명 주식회사',code:'23860'},
+{sp:'영업1-1',name:'유앤아이',code:'23871'},
+{sp:'영업1-1',name:'주식회사 소노조명',code:'23883'},
+{sp:'영업1-1',name:'한 스토어',code:'23943'},
+{sp:'영업1-1',name:'(주)제일전기조명',code:'23951'},
+{sp:'영업1-1',name:'(주)대화이앤씨',code:'23953'},
+{sp:'영업1-1',name:'주식회사 국제조명',code:'23956'},
+{sp:'영업1-1',name:'오성전기조명',code:'23959'},
+{sp:'영업1-1',name:'주식회사 동진조명',code:'23960'},
+{sp:'영업1-1',name:'프라하',code:'23985'},
+{sp:'영업1-1',name:'주식회사 대하라이팅',code:'23999'},
+{sp:'영업1-1',name:'(주)한민산전',code:'24004'},
+{sp:'영업1-1',name:'주식회사 엠알케이',code:'24028'},
+{sp:'영업1-1',name:'엔셀라이트',code:'24029'},
+{sp:'영업1-1',name:'금호전기조명',code:'24057'},
+{sp:'영업1-1',name:'주식회사 형제종합전기',code:'24058'},
+{sp:'영업1-1',name:'(주)탑컨테이너',code:'24076'},
+{sp:'영업1-1',name:'(주)맵라이팅',code:'24077'},
+{sp:'영업1-1',name:'맘비코리아',code:'24141'},
+{sp:'영업1-1',name:'주식회사다와',code:'24142'},
+{sp:'영업1-1',name:'바른생활라이팅',code:'24145'},
+{sp:'영업1-1',name:'지노라이팅',code:'24146'},
+{sp:'영업1-1',name:'엠디컴퍼니',code:'24164'},
+{sp:'영업1-1',name:'태영건재산업(주)',code:'24169'},
+{sp:'영업1-2',name:'다주는조명',code:'23713'},
+{sp:'영업1-2',name:'동광전기(영등포)',code:'23719'},
+{sp:'영업1-2',name:'한빛LED조명',code:'23728'},
+{sp:'영업1-2',name:'(주)심플전기종합상사',code:'23764'},
+{sp:'영업1-2',name:'제이케이 일렉트로닉',code:'23765'},
+{sp:'영업1-2',name:'주식회사 아트메이드',code:'23769'},
+{sp:'영업1-2',name:'대한전기조명',code:'23806'},
+{sp:'영업1-2',name:'나무전기',code:'23817'},
+{sp:'영업1-2',name:'두손하우징',code:'23827'},
+{sp:'영업1-2',name:'우리전기(안산)',code:'23830'},
+{sp:'영업1-2',name:'(주)제이에스앤씨(JS&C)',code:'23843'},
+{sp:'영업1-2',name:'와이즈 웍스',code:'23844'},
+{sp:'영업1-2',name:'주식회사 금호에스티',code:'23868'},
+{sp:'영업1-2',name:'우딘숲몰딩도어.목재',code:'23903'},
+{sp:'영업1-2',name:'부광전기',code:'23908'},
+{sp:'영업1-2',name:'은평전기조명',code:'23919'},
+{sp:'영업1-2',name:'(주)장수전기조명',code:'23936'},
+{sp:'영업1-2',name:'광진조명',code:'23972'},
+{sp:'영업1-2',name:'선일조명',code:'24030'},
+{sp:'영업1-2',name:'주식회사 다니즈',code:'24032'},
+{sp:'영업1-2',name:'성현전기조명',code:'24059'},
+{sp:'영업1-2',name:'배곧아브뉴 LED조명',code:'24061'},
+{sp:'영업1-2',name:'21세기열쇠',code:' 철물'},
+{sp:'영업1-2',name:'주식회사 신한이앤엘',code:'24084'},
+{sp:'영업1-2',name:'주식회사 중부하이텍',code:'24111'},
+{sp:'영업1-2',name:'(주)일산전기조명플러스',code:'24118'},
+{sp:'영업1-2',name:'(주)룩스탑',code:'24125'},
+{sp:'영업1-2',name:'제이앤케이솔루션',code:'24130'},
+{sp:'영업1-2',name:'태양전기조명',code:'24132'},
+{sp:'영업1-2',name:'올바른 조명(광주)',code:'24134'},
+{sp:'영업1-2',name:'우진전기조명(수원)',code:'24139'},
+{sp:'영업1-2',name:'에드온조명',code:'24144'},
+{sp:'영업1-2',name:'주식회사 대호티아이',code:'24179'},
+{sp:'영업1-3',name:'제일전기',code:'23723'},
+{sp:'영업1-3',name:'우주전기조명',code:'23834'},
+{sp:'영업1-3',name:'엘이디마트',code:'23862'},
+{sp:'영업1-3',name:'서진전기조명',code:' 장원테이프'},
+{sp:'영업1-3',name:'강남전기',code:'23881'},
+{sp:'영업1-3',name:'경성전기',code:'23973'},
+{sp:'영업1-3',name:'삼경전기',code:'23989'},
+{sp:'영업1-3',name:'루멘조명(루멘라이팅)',code:'24074'},
+{sp:'영업1-3',name:'리온 조명',code:'24088'},
+{sp:'영업1-3',name:'에스에스(SS)테크마린',code:'24095'},
+{sp:'영업1-3',name:'더 큰길',code:'24133'},
+{sp:'영업1-3',name:'무문조명',code:'24159'},
+{sp:'영업1-3',name:'티나(TiNA)라이팅',code:'24182'},
+{sp:'영업1-4',name:'케이디(KD)전기조명',code:'23718'},
+{sp:'영업1-4',name:'좋은산업',code:'23757'},
+{sp:'영업1-4',name:'남북전기조명',code:'23770'},
+{sp:'영업1-4',name:'아이엠전기',code:'23786'},
+{sp:'영업1-4',name:'성우전기조명',code:'23788'},
+{sp:'영업1-4',name:'(유)태광전기',code:'23802'},
+{sp:'영업1-4',name:'나진전기상사',code:'23804'},
+{sp:'영업1-4',name:'세아전기조명',code:'23818'},
+{sp:'영업1-4',name:'주식회사 코코전기',code:'23846'},
+{sp:'영업1-4',name:'경원엘이디(LED)조명',code:'23896'},
+{sp:'영업1-4',name:'에코루멘스',code:'23916'},
+{sp:'영업1-4',name:'콤비조명',code:'23927'},
+{sp:'영업1-4',name:'대현전기조명',code:'23958'},
+{sp:'영업1-4',name:'심스라이팅 LED조명스토어',code:'23978'},
+{sp:'영업1-4',name:'(주)일월전기조명',code:'23983'},
+{sp:'영업1-4',name:'(주)리본라이팅',code:'23990'},
+{sp:'영업1-4',name:'반디조명상사',code:'23995'},
+{sp:'영업1-4',name:'(주)나이스조명',code:'24017'},
+{sp:'영업1-4',name:'유한회사 경전사전기조명',code:'24036'},
+{sp:'영업1-4',name:'주식회사 주도전기',code:'24064'},
+{sp:'영업1-4',name:'밝은조명',code:'24072'},
+{sp:'영업1-4',name:'대성전기조명',code:'24116'},
+{sp:'영업1-4',name:'대남전기조명',code:'24175'},
+{sp:'영업1-5',name:'충주전기상사주식회사',code:'23928'},
+{sp:'영업1-5',name:'진천 전기 상사',code:'24015'},
+{sp:'영업1-5',name:'신광코리아',code:'24031'},
+{sp:'영업1-5',name:'주식회사 용진종합전기',code:'24033'},
+{sp:'영업1-5',name:'오렉스(부영산업)',code:'24060'},
+{sp:'영업1-5',name:'웅진전자(주)',code:'24080'},
+{sp:'영업1-5',name:'주식회사 동해전기백화점',code:'24093'},
+{sp:'영업1-5',name:'(주)보성전기조명',code:'24119'},
+{sp:'영업1-5',name:'(주)동성룩스',code:'30192'},
+{sp:'영업1-6',name:'(주)성림전기',code:'23720'},
+{sp:'영업1-6',name:'휘게 엘이디',code:'23797'},
+{sp:'영업1-6',name:'한스테크',code:'23861'},
+{sp:'영업1-6',name:'크레텍웰딩주식회사',code:'23873'},
+{sp:'영업1-6',name:'(주)미래전기조명',code:'23890'},
+{sp:'영업1-6',name:'(주)에스제이엘이디(S',code:'J LED)조명'},
+{sp:'영업1-6',name:'라인컴퍼니',code:'23897'},
+{sp:'영업1-6',name:'청춘전기조명',code:'23965'},
+{sp:'영업1-6',name:'리브하우스',code:'23966'},
+{sp:'영업1-6',name:'남양상사',code:'24001'},
+{sp:'영업1-6',name:'백년전기조명',code:'24024'},
+{sp:'영업1-6',name:'성광조명랜드',code:'24046'},
+{sp:'영업1-6',name:'(주)지이엠',code:'24047'},
+{sp:'영업1-6',name:'제이원(Jone)',code:'24050'},
+{sp:'영업1-6',name:'광수생각',code:'24054'},
+{sp:'영업1-6',name:'백광산업안전',code:'24056'},
+{sp:'영업1-6',name:'미아전기조명',code:'24079'},
+{sp:'영업1-6',name:'대상엘이디 주식회사',code:'24099'},
+{sp:'영업1-6',name:'(주)성진',code:'24105'},
+{sp:'영업1-6',name:'대광전기',code:'24109'},
+{sp:'영업1-6',name:'렉시움',code:'24120'},
+{sp:'영업1-6',name:'주식회사 우진전기',code:'24126'},
+{sp:'영업1-6',name:'송림전기',code:'24131'},
+{sp:'영업1-6',name:'영원ELC',code:'24153'},
+{sp:'영업1-6',name:'유진종합상사',code:'24166'},
+{sp:'영업1-7',name:'주식회사 지에스금성산업',code:'23932'},
+{sp:'영업1-7',name:'신태양종합 주식회사',code:'24011'},
+{sp:'영업1-7',name:'동원전기조명',code:'24013'},
+{sp:'영업1-7',name:'주식회사 일신비츠온',code:'24022'},
+{sp:'영업1-7',name:'다원조명',code:'24048'},
+{sp:'영업1-7',name:'주식회사 더쎈',code:'24160'},
+{sp:'영업1-7',name:'매일전기(주)',code:'24161'},
+{sp:'영업1-7',name:'(주)베스트조명',code:'24163'},
+{sp:'영업1-7',name:'스마트엘이디마켓',code:'24171'},
+{sp:'영업1-7',name:'제이에스라이팅',code:'23714'},
+{sp:'영업1-2',name:'장수LED전기조명',code:'23715'},
+{sp:'영업1-4',name:'(주)현대에스디아이(SDI)',code:'23716'},
+{sp:'영업1-2',name:'주식회사 미래전기',code:'23717'},
+{sp:'',name:'롯데쇼핑(주) 롯데마트 롯데몰수지점',code:'23721'},
+{sp:'',name:'(주)순성이엔씨',code:'23722'},
+{sp:'영업1-3',name:'SK전기조명',code:'23724'},
+{sp:'영업1-2',name:'주식회사 루미앤',code:'23725'},
+{sp:'',name:'탄탄전기',code:'23726'},
+{sp:'영업1-3',name:'잇츠라이팅',code:'23727'},
+{sp:'영업1-2',name:'연성삼성아파트 입주자 대표회의',code:'23729'},
+{sp:'영업1-5',name:'주식회사 다온트레이딩',code:'23730'},
+{sp:'영업1-4',name:'성원전기조명',code:'23731'},
+{sp:'',name:'세현전기조명',code:'23732'},
+{sp:'',name:'주식회사 대명전기',code:'23733'},
+{sp:'',name:'이레종합전기',code:'23734'},
+{sp:'영업1-5',name:'서해건철 주식회사',code:'23736'},
+{sp:'',name:'(주)미래조명',code:'23737'},
+{sp:'',name:'(주)인코비피에스',code:'23738'},
+{sp:'영업2-1',name:'일성종합건설(주)',code:'23739'},
+{sp:'영업1-2',name:'지엘산업 주식회사',code:'23740'},
+{sp:'영업1-2',name:'부영산전(주)',code:'23741'},
+{sp:'',name:'에디슨 종합상사',code:'23742'},
+{sp:'',name:'주식회사 다온이엘씨',code:'23743'},
+{sp:'영업1-3',name:'무문(Mu Moon)조명',code:'23744'},
+{sp:'',name:'거산전기',code:'23745'},
+{sp:'',name:'주식회사 보경전력',code:'23746'},
+{sp:'영업1-1',name:'(주)예일전기',code:'23747'},
+{sp:'영업1-4',name:'주식회사 태광전기조명',code:'23748'},
+{sp:'',name:'성광전기',code:'23750'},
+{sp:'',name:'(주)비오비플랜',code:'23751'},
+{sp:'',name:'소방주유소',code:'23752'},
+{sp:'영업2-1',name:'(주)디자인런',code:'23753'},
+{sp:'',name:'휴올레드(HUEALLED)',code:'23754'},
+{sp:'',name:'삼영전기',code:'23755'},
+{sp:'',name:'(주)송원물산',code:'23756'},
+{sp:'영업1-2',name:'에스앤비 라이텍',code:'23758'},
+{sp:'',name:'주식회사 영남이엔지',code:'23759'},
+{sp:'',name:'진양폴리우레탄(주)',code:'23760'},
+{sp:'',name:'훼미리가구 주식회사',code:'23761'},
+{sp:'영업2-1',name:'아인건축',code:'23762'},
+{sp:'영업1-2',name:'주식회사 코크리에이트',code:'23763'},
+{sp:'영업1-2',name:'주식회사 엔티보',code:'23766'},
+{sp:'영업1-2',name:'(주)크린세븐',code:'23767'},
+{sp:'영업2-1',name:'유진산업개발',code:'23768'},
+{sp:'영업1-4',name:'미르 라이팅',code:'23771'},
+{sp:'영업1-4',name:'주식회사 서울전기조명',code:'23772'},
+{sp:'',name:'우림필유오피스텔입주자대표회의',code:'23773'},
+{sp:'영업2-1',name:'제이와이피 인테리어',code:'23774'},
+{sp:'영업1-4',name:'주식회사 사자',code:'23775'},
+{sp:'영업1-7',name:'(주)썬히트전기',code:'23776'},
+{sp:'영업1-4',name:'LED신조명',code:'23777'},
+{sp:'영업1-1',name:'88조명',code:'23778'},
+{sp:'',name:'유유아이앤에이',code:'23779'},
+{sp:'영업1-2',name:'(주)마트킹안녕',code:'23780'},
+{sp:'',name:'(주)엘지스포츠',code:'23781'},
+{sp:'',name:'주식회사 엘렘포',code:'23782'},
+{sp:'영업1-2',name:'주식회사 마트킹서수원',code:'23783'},
+{sp:'영업1-2',name:'주식회사 엠케이홀딩스',code:'23784'},
+{sp:'영업1-2',name:'주식회사 레드케이',code:'23785'},
+{sp:'영업1-5',name:'고은 스카이 라이팅',code:'23787'},
+{sp:'',name:'주식회사 제스코인터내셔널',code:'23789'},
+{sp:'영업1-2',name:'(주)마트킹구성',code:'23790'},
+{sp:'영업2-1',name:'지오종합건설(주)',code:'23791'},
+{sp:'영업1-4',name:'이안전기조명',code:'23792'},
+{sp:'영업1-1',name:'에이치디 전기조명',code:'23793'},
+{sp:'',name:'원일전력',code:'23794'},
+{sp:'영업1-2',name:'한미엔터프라이스',code:'23795'},
+{sp:'영업1-2',name:'주식회사 티시스',code:'23796'},
+{sp:'',name:'주일자수',code:'23798'},
+{sp:'',name:'동남산전(주)',code:'23799'},
+{sp:'',name:'주원산업',code:'23800'},
+{sp:'',name:'(주)보미건설(x)',code:'23801'},
+{sp:'영업1-2',name:'(주)씨에스알',code:'23803'},
+{sp:'',name:'금호에스티',code:'23805'},
+{sp:'',name:'주식회사 올림픽컨트리클럽',code:'23807'},
+{sp:'',name:'(주)보미건설',code:'23808'},
+{sp:'영업1-2',name:'세기교역상사',code:'23810'},
+{sp:'',name:'한스파이낸스대부',code:'23811'},
+{sp:'',name:'(주)삼명사',code:'23812'},
+{sp:'',name:'주식회사 좋은디자인구디',code:'23814'},
+{sp:'영업1-5',name:'인화전기',code:'23815'},
+{sp:'',name:'한지이야기',code:'23816'},
+{sp:'영업2-1',name:'주식회사 경한산업',code:'23819'},
+{sp:'영업1-2',name:'형도전기',code:'23820'},
+{sp:'',name:'유한회사푸른내일건설',code:'23821'},
+{sp:'',name:'블루웨이브텔(주)',code:'23822'},
+{sp:'영업1-2',name:'(주)구성이엔아이',code:'23823'},
+{sp:'',name:'(주)에스에스피',code:'23825'},
+{sp:'영업1-2',name:'제이아이전기주식회사',code:'23826'},
+{sp:'',name:'(주)그랑시떼스포츠',code:'23828'},
+{sp:'영업2-1',name:'주식회사 젠플랜',code:'23829'},
+{sp:'',name:'(주)남영전기',code:'23831'},
+{sp:'',name:'청호골프연습장',code:'23832'},
+{sp:'영업2-1',name:'미담디자인주식회사',code:'23833'},
+{sp:'',name:'다이소안면도점',code:'23835'},
+{sp:'',name:'이철헤어커커 이천중앙점',code:'23836'},
+{sp:'',name:'(주)한석디엔아이_다이소',code:'23837'},
+{sp:'영업1-2',name:'올바른 조명',code:'23838'},
+{sp:'',name:'한국폴리텍대학 화성캠퍼스',code:'23839'},
+{sp:'영업1-3',name:'루미노라이팅',code:'23840'},
+{sp:'',name:'대건정보통신',code:'23841'},
+{sp:'영업2-1',name:'공드린인테리어',code:'23842'},
+{sp:'',name:'해솔리아컨트리클럽주식회사',code:'23845'},
+{sp:'영업1-2',name:'신한펀드파트너스 주식회사',code:'23847'},
+{sp:'',name:'동남산전상사',code:'23848'},
+{sp:'영업1-2',name:'주식회사 엘이디그린티',code:'23849'},
+{sp:'',name:'주식회사 엠케이전력',code:'23850'},
+{sp:'영업1-2',name:'주식회사 레드케이안성',code:'23851'},
+{sp:'영업1-2',name:'(주)엠케이홀딩스',code:'23852'},
+{sp:'영업1-2',name:'(주)케이푸드',code:'23853'},
+{sp:'',name:'신풍PI (신풍피아이)',code:'23854'},
+{sp:'영업1-5',name:'진영전기조명 주식회사',code:'23855'},
+{sp:'영업1-2',name:'유한회사 탑마트',code:'23856'},
+{sp:'',name:'주식회사 알파룩스',code:'23857'},
+{sp:'',name:'(주)루미아전기조명',code:'23858'},
+{sp:'영업1-2',name:'대호전기LED조명',code:'23859'},
+{sp:'',name:'주안건설 주식회사',code:'23863'},
+{sp:'',name:'이안건축',code:'23864'},
+{sp:'영업1-5',name:'이지전기조명',code:'23865'},
+{sp:'',name:'착한자동차',code:'23866'},
+{sp:'영업1-2',name:'형제전기(인천)',code:'23867'},
+{sp:'',name:'주식회사 종합건축사사무소 도성건축',code:'23869'},
+{sp:'영업2-1',name:'가우인테리어솔루션',code:'23870'},
+{sp:'영업1-2',name:'주식회사 고은생활',code:'23872'},
+{sp:'영업2-1',name:'주식회사 디자인쉬엔비',code:'23874'},
+{sp:'',name:'다이소 수원곡반정점',code:'23875'},
+{sp:'영업2-1',name:'광원건설주식회사',code:'23876'},
+{sp:'',name:'상현골프클럽',code:'23877'},
+{sp:'',name:'하민호',code:'23878'},
+{sp:'',name:'서성진',code:'23879'},
+{sp:'영업1-4',name:'태양LED',code:'23882'},
+{sp:'',name:'(주)대동사',code:'23884'},
+{sp:'영업2-1',name:'유진전기',code:'23885'},
+{sp:'영업2-1',name:'주식회사 일경건설산업',code:'23886'},
+{sp:'영업1-2',name:'세유전기',code:'23887'},
+{sp:'영업1-3',name:'주식회사 남영전기',code:'23888'},
+{sp:'영업1-3',name:'문라이팅',code:'23889'},
+{sp:'영업1-2',name:'(주)툴스피아',code:'23891'},
+{sp:'영업2-1',name:'(주)프로솔 (PROSOL)',code:'23893'},
+{sp:'영업1-4',name:'낭도전기조명인테리어',code:'23894'},
+{sp:'영업1-4',name:'태호전기조명',code:'23895'},
+{sp:'영업2-1',name:'거제자원개발',code:'23898'},
+{sp:'',name:'롯데쇼핑(주) 비바건강마켓 남양주진접점',code:'23899'},
+{sp:'영업2-1',name:'주식회사 청학전력공사',code:'23900'},
+{sp:'',name:'스페이스공감',code:'23901'},
+{sp:'영업1-2',name:'동탄전기조명',code:'23902'},
+{sp:'',name:'주식회사 경인엘레베이터',code:'23904'},
+{sp:'',name:'주식회사 에이치비라이팅',code:'23905'},
+{sp:'영업1-3',name:'(주)동원산전',code:'23906'},
+{sp:'영업1-3',name:'잇츠라이팅(부산)',code:'23907'},
+{sp:'영업1-3',name:'주식회사 최첨단전기',code:'23909'},
+{sp:'',name:'주식회사 천일',code:'23910'},
+{sp:'',name:'주식회사 디앤알라이팅',code:'23911'},
+{sp:'영업1-4',name:'더줌라이팅',code:'23912'},
+{sp:'영업1-4',name:'엘라이트',code:'23913'},
+{sp:'영업1-2',name:'주식회사 우광이앤에스',code:'23914'},
+{sp:'',name:'주식회사 씨투디자인',code:'23915'},
+{sp:'',name:'녹색 전기',code:'조명'},
+{sp:'영업1-2',name:'(주)티에스엔지니어링건축사사무소',code:'23918'},
+{sp:'영업1-2',name:'피에스 인터내셔널',code:'23920'},
+{sp:'영업3-4',name:'태광산업(주) 안양공장',code:'23921'},
+{sp:'',name:'드림디자인',code:'23923'},
+{sp:'영업1-1',name:'(주)애니테이프',code:'23924'},
+{sp:'',name:'세종텔레콤 주식회사',code:'23925'},
+{sp:'',name:'럭키 모바일',code:'23926'},
+{sp:'영업1-2',name:'(주)헤펙',code:'23929'},
+{sp:'',name:'(주)도고칸트리구락부',code:'23930'},
+{sp:'영업1-2',name:'이성이엔씨 주식회사',code:'23931'},
+{sp:'',name:'태광컨트리클럽',code:'23933'},
+{sp:'영업1-4',name:'와이마트 각화군왕로점',code:'23934'},
+{sp:'영업1-5',name:'주식회사 루미나온',code:'23935'},
+{sp:'',name:'(주)아모레퍼시픽',code:'23937'},
+{sp:'',name:'충신토건주식회사',code:'23938'},
+{sp:'영업1-2',name:'한국전기',code:'23939'},
+{sp:'영업1-4',name:'목포갤러리 조명',code:'23940'},
+{sp:'영업1-2',name:'(주)엠제이이엔지',code:'23941'},
+{sp:'',name:'프로메저',code:'23942'},
+{sp:'',name:'롯데쇼핑(주) 롯데마트맥스 목포점',code:'23944'},
+{sp:'영업1-2',name:'농업회사법인 주식회사 예소담',code:'23945'},
+{sp:'',name:'롯데쇼핑(주) 롯데마트맥스 상무점',code:'23946'},
+{sp:'',name:'롯데쇼핑(주) 롯데마트맥스 송천점',code:'23947'},
+{sp:'',name:'롯데쇼핑(주) VIC마켓 금천점',code:'23948'},
+{sp:'',name:'롯데쇼핑(주) VIC마켓 영등포점',code:'23949'},
+{sp:'영업1-2',name:'주식회사 썬광이앤씨',code:'23950'},
+{sp:'영업1-2',name:'닥터룩스',code:'23952'},
+{sp:'영업1-2',name:'이큐브인더스트리',code:'23954'},
+{sp:'',name:'롯데쇼핑(주)롯데마트 인천터미널점',code:'23955'},
+{sp:'영업1-4',name:'(주)우보종합전기',code:'23957'},
+{sp:'영업1-1',name:'주식회사 신천전기',code:'23961'},
+{sp:'영업1-1',name:'진흥전기조명',code:'23962'},
+{sp:'영업1-2',name:'주식회사 솔라플렉스',code:'23963'},
+{sp:'영업1-1',name:'주식회사 와이앤케이',code:'23964'},
+{sp:'영업1-1',name:'세미라이팅',code:'23967'},
+{sp:'영업1-5',name:'주식회사 한일티엔에스',code:'23968'},
+{sp:'',name:'맨웍스',code:'23969'},
+{sp:'',name:'롯데쇼핑(주) 롯데마트맥스 창원중앙점',code:'23970'},
+{sp:'',name:'에스페란사골프클럽',code:'23971'},
+{sp:'영업1-1',name:'프라임',code:'23974'},
+{sp:'',name:'(주)아이풀 피파크지점',code:'23975'},
+{sp:'영업1-2',name:'미르',code:'23976'},
+{sp:'',name:'다이소(여수 봉계점)',code:'23977'},
+{sp:'',name:'주식회사 청정에너지솔루션',code:'23979'},
+{sp:'영업1-3',name:'우노 라이팅',code:'23980'},
+{sp:'영업1-1',name:'제이라이팅',code:'23981'},
+{sp:'',name:'오선옥(다이소 남원인월점)',code:'23982'},
+{sp:'',name:'주식회사 빼박캔트',code:'23984'},
+{sp:'',name:'리앤리어드바이저스',code:'23986'},
+{sp:'',name:'(주)밴엔지니어링',code:'23987'},
+{sp:'영업1-2',name:'주식회사 세유이엔씨',code:'23988'},
+{sp:'영업1-4',name:'영화종합물류',code:'23991'},
+{sp:'',name:'주식회사태일테크',code:'23992'},
+{sp:'',name:'탑연세치과병원',code:'23993'},
+{sp:'영업1-2',name:'주식회사 제이에스인더스트리',code:'23994'},
+{sp:'영업1-2',name:'강운공업(주)',code:'23996'},
+{sp:'',name:'다이소 광한루점',code:'23997'},
+{sp:'영업1-5',name:'주식회사 우리전기',code:'23998'},
+{sp:'영업1-1',name:'주식회사 언노운',code:'24000'},
+{sp:'영업1-2',name:'이룸',code:'24002'},
+{sp:'영업1-2',name:'공무원연금공단',code:'24003'},
+{sp:'영업1-2',name:'(주)에이렘',code:'24005'},
+{sp:'',name:'주식회사 홍익레저산업',code:'24006'},
+{sp:'영업1-4',name:'비엔지(BNG)리테일',code:'24007'},
+{sp:'',name:'스마트자원',code:'24008'},
+{sp:'',name:'다이소 장흥지점',code:'24009'},
+{sp:'',name:'내추럴마켓 주식회사',code:'24010'},
+{sp:'영업1-1',name:'우리전기(인천)',code:'24012'},
+{sp:'영업1-5',name:'한국조명 주식회사',code:'24014'},
+{sp:'',name:'주식회사하엠',code:'24016'},
+{sp:'영업1-2',name:'(주)키프로토',code:'24018'},
+{sp:'영업1-1',name:'(주)구일종합전기',code:'24019'},
+{sp:'영업1-2',name:'(주)에스티엔비',code:'24020'},
+{sp:'영업1-5',name:'HK상사',code:'24021'},
+{sp:'영업1-7',name:'찬누리',code:'24023'},
+{sp:'',name:'안양역한양수자인리버파크 입주자대표회의',code:'24025'},
+{sp:'영업1-2',name:'주식회사 한국비아테크',code:'24026'},
+{sp:'영업1-6',name:'제이제이(JJ)',code:'24027'},
+{sp:'영업1-2',name:'대동전기조명',code:'24034'},
+{sp:'영업1-4',name:'천지조명',code:'24035'},
+{sp:'영업1-5',name:'용아트',code:'24037'},
+{sp:'영업1-5',name:'라움누리',code:'24038'},
+{sp:'영업1-1',name:'(주)은진통상',code:'24039'},
+{sp:'영업1-4',name:'감성조명',code:'24040'},
+{sp:'영업1-5',name:'주식회사 파인티케이',code:'24041'},
+{sp:'영업1-2',name:'동진조명(인천)',code:'24042'},
+{sp:'영업1-2',name:'농협경제지주 주식회사',code:'24043'},
+{sp:'영업1-2',name:'성호산업 주식회사',code:'24044'},
+{sp:'영업1-1',name:'(주)성우컴테크',code:'24045'},
+{sp:'영업1-2',name:'주식회사 닥터룩스',code:'24049'},
+{sp:'',name:'법무법인유일',code:'24051'},
+{sp:'영업1-2',name:'주식회사 오성전기조명(평택)',code:'24052'},
+{sp:'영업1-2',name:'주식회사 한울엔지니어링',code:'24053'},
+{sp:'영업1-6',name:'주영상사',code:'24055'},
+{sp:'영업1-4',name:'씨오코리아(COKOREA)',code:'24062'},
+{sp:'영업1-2',name:'클래터E&D',code:'24063'},
+{sp:'영업1-4',name:'형제전기상사',code:'24065'},
+{sp:'영업1-2',name:'한화호텔앤드리조트 (주)',code:'24066'},
+{sp:'영업1-2',name:'엔젤인터내셔널',code:'24067'},
+{sp:'영업1-2',name:'경성종합공사',code:'24068'},
+{sp:'영업1-2',name:'아람마루',code:'24069'},
+{sp:'영업1-6',name:'아키라이팅',code:'24070'},
+{sp:'',name:'에이치제이디오션리조트 주식회사',code:'24071'},
+{sp:'영업1-1',name:'주식회사 우리조명',code:'24073'},
+{sp:'영업1-2',name:'주식회사 더아름',code:'24075'},
+{sp:'영업1-2',name:'디에스테크(DS테크)',code:'24078'},
+{sp:'',name:'주식회사 조이솔루션',code:'24082'},
+{sp:'영업1-4',name:'유현전기조명',code:'24083'},
+{sp:'영업1-2',name:'신영전기이엔지 주식회사',code:'24085'},
+{sp:'영업1-7',name:'엘비에스',code:'24086'},
+{sp:'',name:'현대ESA아파트 입주자 대표회의',code:'24087'},
+{sp:'',name:'디엠에스인테리어 LX지인대리점(용인성복점)',code:'24089'},
+{sp:'영업1-2',name:'(주)이온플러스',code:'24090'},
+{sp:'영업1-2',name:'주식회사 씨에이치플렉스',code:'24091'},
+{sp:'영업1-1',name:'중앙전기조명',code:'24092'},
+{sp:'영업1-4',name:'현조명 유한회사',code:'24094'},
+{sp:'영업1-2',name:'(주)이노플렉스',code:'24096'},
+{sp:'영업1-4',name:'한일기전주식회사',code:'24097'},
+{sp:'영업1-2',name:'PT. FULLMOON JAYA ABADI',code:'24098'},
+{sp:'영업1-4',name:'선우LED전기조명',code:'24100'},
+{sp:'',name:'우주산전',code:'24101'},
+{sp:'영업1-4',name:'한빛전기',code:'24102'},
+{sp:'',name:'쓰리에스 써키트',code:'24103'},
+{sp:'영업1-2',name:'코지(Cozii)',code:'24104'},
+{sp:'영업1-2',name:'주식회사 에코프로비엠',code:'24106'},
+{sp:'영업1-4',name:'주식회사쓰임받는사람들',code:'24107'},
+{sp:'영업1-4',name:'신영창호',code:'24108'},
+{sp:'영업1-4',name:'주식회사 엘이디팩토리',code:'24110'},
+{sp:'영업1-2',name:'아트테크',code:'24112'},
+{sp:'',name:'동명기전공업(주)',code:'24113'},
+{sp:'영업1-6',name:'재생농산',code:'24114'},
+{sp:'영업1-4',name:'알파플러스',code:'24115'},
+{sp:'',name:'롯데쇼핑(주) 롯데마트 천호점',code:'24117'},
+{sp:'영업1-4',name:'주빛전기',code:'24121'},
+{sp:'영업1-2',name:'석림주공2단지 입대회',code:'24122'},
+{sp:'',name:'(주)에스피텍',code:'24123'},
+{sp:'영업1-6',name:'화니전기조명',code:'24124'},
+{sp:'',name:'(주)태양기술개발',code:'24127'},
+{sp:'영업1-6',name:'루미케어',code:'24128'},
+{sp:'영업1-4',name:'샤인LED',code:'24129'},
+{sp:'영업1-2',name:'대웅조명',code:'24135'},
+{sp:'영업1-5',name:'지성전기조명',code:'24136'},
+{sp:'영업1-5',name:'엠씨라이텍',code:'24137'},
+{sp:'영업1-1',name:'대림전기조명',code:'24138'},
+{sp:'영업1-4',name:'무광전기',code:'24140'},
+{sp:'',name:'일송개발(주)',code:'24143'},
+{sp:'영업1-4',name:'주식회사 태진전기',code:'24147'},
+{sp:'',name:'클라리온쇼핑몰',code:'24148'},
+{sp:'영업1-6',name:'오케이 전기조명',code:'24149'},
+{sp:'',name:'(주)오루체',code:'24150'},
+{sp:'',name:'(주)한얼누리',code:'24151'},
+{sp:'영업1-6',name:'우리테크',code:'24152'},
+{sp:'',name:'스마트스토어',code:'24155'},
+{sp:'',name:'지마켓',code:'24156'},
+{sp:'',name:'옥션',code:'24157'},
+{sp:'',name:'11번가',code:'24158'},
+{sp:'영업1-6',name:'수성별 전기조명',code:'24162'},
+{sp:'영업1-2',name:'사단법인 함께하는 사랑밭',code:'24165'},
+{sp:'영업1-7',name:'수원대학교',code:'24167'},
+{sp:'영업1-7',name:'지엘전기',code:'24170'},
+{sp:'영업1-4',name:'현대설비',code:'24172'},
+{sp:'',name:'(주)지에스리테일 홈쇼핑',code:'24173'},
+{sp:'영업1-4',name:'한신전기 주식회사',code:'24174'},
+{sp:'영업1-2',name:'라이팅플러스',code:'24176'},
+{sp:'',name:'주식회사 위례',code:'24177'},
+{sp:'영업1-1',name:'커스텀M',code:'24178'},
+{sp:'',name:'(주)조선호텔앤리조트 레저',code:'24180'},
+{sp:'영업1-7',name:'이케이라이팅',code:'24181'},
+{sp:'',name:'롯데빅마켓',code:'29997'},
+{sp:'',name:'롯데쇼핑(주)',code:'29999'},
+{sp:'',name:'재단법인 한국조명연구원',code:'30017'},
+{sp:'',name:'금호전기(주)',code:'30024'},
+{sp:'',name:'(주)케이비텍',code:'30105'},
+{sp:'',name:'(주)케이투마케팅',code:'30109'},
+{sp:'',name:'대화페인트공업(주)',code:'30186'},
+{sp:'',name:'롯데정보통신(주)',code:'30207'},
+{sp:'',name:'서안산IC주유소',code:'30271'},
+{sp:'',name:'안산사동정비공업사',code:'30309'},
+{sp:'',name:'안산세무서',code:'30312'},
+{sp:'',name:'경기도 안산시',code:'30313'},
+{sp:'',name:'주식회사 케이티',code:'30389'},
+{sp:'',name:'(주)텔스코',code:'30495'},
+{sp:'',name:'의료법인 대아의료재단',code:'30504'},
+{sp:'',name:'네오루미(주)',code:'30518'},
+{sp:'',name:'(주)신세계푸드',code:'30530'},
+{sp:'',name:'(주)골든칩스',code:'30534'},
+{sp:'영업1-2',name:'코웨이(주)',code:'30546'},
+{sp:'영업1-2',name:'만해건축',code:'30604'},
+{sp:'',name:'일성',code:'30616'},
+{sp:'',name:'인천항 공동물류(주)',code:'30639'},
+{sp:'',name:'KUNSAHN SONGMA HI TECH CO LTD',code:'30641'},
+{sp:'',name:'(주)혜인종합건설',code:'30690'},
+{sp:'',name:'지씨케이(GCK) 엔터테이먼트',code:'30699'},
+{sp:'',name:'서도건설산업(주)',code:'30717'},
+{sp:'',name:'우리피앤엠(주)',code:'30718'},
+{sp:'',name:'그린모터스',code:'30730'},
+{sp:'',name:'황호연',code:'30750'},
+{sp:'',name:'(주)우기화학',code:'30752'},
+{sp:'',name:'고용보험관리공단',code:'30767'},
+{sp:'',name:'(주)제이시스템즈',code:'30768'},
+{sp:'',name:'(주)우리엠엔에스',code:'30781'},
+{sp:'',name:'우리컬러원(주)',code:'30829'},
+{sp:'',name:'법무법인 평안',code:'30838'},
+{sp:'영업1-2',name:'제이에스전기(주)',code:'30849'},
+{sp:'',name:'굿모닝상사',code:'30871'},
+{sp:'',name:'엔지티',code:'30874'},
+{sp:'',name:'폴비즈',code:'30875'},
+{sp:'',name:'강남구청',code:'30882'},
+{sp:'',name:'태광',code:'30883'},
+{sp:'',name:'주식회사 현대홈쇼핑',code:'30890'},
+{sp:'',name:'에스씨',code:'30908'},
+{sp:'',name:'타이어프로 서안산점',code:'30914'},
+{sp:'',name:'한결테크',code:'30917'},
+{sp:'영업1-5',name:'씨엠에스코리아 주식회사',code:'30919'},
+{sp:'',name:'모던라이팅',code:'30940'},
+{sp:'',name:'코오롱머티리얼(주)',code:'30947'},
+{sp:'',name:'(주)현대중앙',code:'30954'},
+{sp:'',name:'마케팅팀',code:'30963'},
+{sp:'영업1-2',name:'케이엘전기(주)',code:'31789'},
+{sp:'영업1-2',name:'(주)엘제이내셔널',code:'31791'},
+{sp:'',name:'최영호',code:'31805'},
+{sp:'',name:'에이치씨에이에스(주)오산경매장',code:'31806'},
+{sp:'',name:'(주)군포종합폐차장',code:'31814'},
+{sp:'',name:'네이버파이낸셜(주)',code:'31815'},
+{sp:'영업1-5',name:'디제이디 주식회사',code:'31845'},
+{sp:'',name:'산한은행 안산법원',code:'31877'},
+{sp:'',name:'우리그린사이언스 주식회사',code:'31917'},
+{sp:'',name:'마니카',code:'31970'},
+{sp:'',name:'쿠팡 주식회사',code:'31990'},
+{sp:'',name:'쿠팡페이 주식회사',code:'31991'},
+{sp:'',name:'십일번가 주식회사',code:'31992'},
+{sp:'',name:'주식회사 지마켓',code:'31993'},
+{sp:'',name:'엔에이치엔커머스(주)',code:'31994'},
+{sp:'',name:'주식회사 지마켓(옥션)',code:'31996'},
+{sp:'영업1-7',name:'(주)금호애드조명',code:'20818'},
+{sp:'영업1-7',name:'(주)두남씨앤비',code:'20883'},
+{sp:'영업1-7',name:'(주)아름전기',code:'20828'},
+{sp:'영업1-7',name:'동양전구(주)',code:'20087'},
+{sp:'영업1-7',name:'레드윈(주)',code:'20820'},
+{sp:'영업1-7',name:'선광전기(주)',code:'20180'},
+{sp:'영업1-7',name:'일륜전기 주식회사',code:'21015'},
+{sp:'영업1-1',name:'(주)룸인커머스',code:'20345'},
+{sp:'영업1-1',name:'(주)비츠',code:'11057'},
+{sp:'영업1-1',name:'(주)서울전기',code:'20911'},
+{sp:'영업1-1',name:'(주)성현종합유통',code:'20457'},
+{sp:'영업1-1',name:'(주)스내지',code:'20804'},
+{sp:'영업1-1',name:'(주)지앤에스레이',code:'20891'},
+{sp:'영업1-1',name:'(주)화성전자',code:'20867'},
+{sp:'영업1-1',name:'A/ONE CHEMICAL',code:'20555'},
+{sp:'영업1-1',name:'광림라이텍',code:'21025'},
+{sp:'영업1-1',name:'광진전업',code:'20440'},
+{sp:'영업1-1',name:'네오전기조명',code:'20888'},
+{sp:'영업1-1',name:'노엘갤럭시아',code:'20859'},
+{sp:'영업1-1',name:'대원조명',code:'20855'},
+{sp:'영업1-1',name:'대화C&L 주식회사',code:'23675'},
+{sp:'영업1-1',name:'라온전기조명',code:'20882'},
+{sp:'영업1-1',name:'림엘이디',code:'23626'},
+{sp:'영업1-1',name:'비케이라이팅 주식회사',code:'20166'},
+{sp:'영업1-1',name:'삼성유통',code:'23698'},
+{sp:'영업1-1',name:'삼원전기조명',code:'20822'},
+{sp:'영업1-1',name:'샤인',code:'10985'},
+{sp:'영업1-1',name:'영전사',code:'20195'},
+{sp:'영업1-1',name:'와이피 리테일',code:'20794'},
+{sp:'영업1-1',name:'우성전기',code:'20204'},
+{sp:'영업1-1',name:'종합전기(시화)',code:'20223'},
+{sp:'영업1-1',name:'주식회사 더원아이앤씨',code:'11006'},
+{sp:'영업1-1',name:'주식회사 코미코',code:'21035'},
+{sp:'영업1-4',name:'(주)화인종합상사',code:'20442'},
+{sp:'영업1-4',name:'남성전기',code:'20068'},
+{sp:'영업1-4',name:'대영전기종합상사(유)',code:'20451'},
+{sp:'영업1-4',name:'지앤디 협동조합',code:'20927'},
+{sp:'영업1-2',name:'(주)대한전기',code:'20016'},
+{sp:'영업1-2',name:'(주)동아',code:'20020'},
+{sp:'영업1-2',name:'(주)미광이앤아이',code:'20786'},
+{sp:'영업1-2',name:'(주)아이에스라이팅',code:'20548'},
+{sp:'영업1-2',name:'(주)오로라조명',code:'20039'},
+{sp:'영업1-2',name:'(주)테크노케이블',code:'20396'},
+{sp:'영업1-2',name:'(주)한울상사',code:'20054'},
+{sp:'영업1-2',name:'21세기열쇠, 철물',code:'24081'},
+{sp:'영업1-2',name:'HR조명전기',code:'20418'},
+{sp:'영업1-2',name:'OK종합상사',code:'20411'},
+{sp:'영업1-2',name:'데이라이트조명',code:'20419'},
+{sp:'영업1-2',name:'동양전기',code:'10647'},
+{sp:'영업1-2',name:'송원전기(주)',code:'20188'},
+{sp:'영업1-2',name:'에이스조명',code:'20900'},
+{sp:'영업1-2',name:'영신전기',code:'20194'},
+{sp:'영업1-2',name:'정우전기조명(성남)',code:'20409'},
+{sp:'영업1-2',name:'참조명',code:'20875'},
+{sp:'영업1-2',name:'티에스조명',code:'23694'},
+{sp:'영업1-2',name:'한반도전기상사',code:'20242'},
+{sp:'영업1-6',name:'(주)에스제이엘이디(S,J LED)조명',code:'23892'},
+{sp:'영업1-6',name:'(주)태원전기',code:'20461'},
+{sp:'영업1-6',name:'대도기업',code:'20073'},
+{sp:'영업1-6',name:'미래씨앤씨(주)',code:'20995'},
+{sp:'영업1-6',name:'유진종합물류',code:'20998'},
+{sp:'영업1-5',name:'(주)강원조명백화점',code:'20424'},
+{sp:'영업1-5',name:'(주)원주전기백화점',code:'20422'},
+{sp:'영업1-5',name:'(주)철물의달인',code:'20894'},
+{sp:'영업1-5',name:'남전사',code:'21010'},
+{sp:'영업1-5',name:'안전사',code:'20909'},
+{sp:'영업1-5',name:'인성조명',code:'21007'},
+{sp:'영업1-3',name:'(주)미광전기',code:'20997'},
+{sp:'영업1-3',name:'(주)미광전기 팔용지점',code:'20805'},
+{sp:'영업1-3',name:'(주)비디엘',code:'21043'},
+{sp:'영업1-3',name:'(주)엠케이전기물류',code:'23673'},
+{sp:'영업1-3',name:'(주)중앙전기물류',code:'23695'},
+{sp:'영업1-3',name:'(주)태백전기',code:'20046'},
+{sp:'영업1-3',name:'(주)포라이트',code:'21054'},
+{sp:'영업1-3',name:'(주)호강종합물류',code:'20948'},
+{sp:'영업1-3',name:'광명전기닷컴 주식회사',code:'20432'},
+{sp:'영업1-3',name:'길전사(울산)',code:'20066'},
+{sp:'영업1-3',name:'동양산전(주)',code:'20086'},
+{sp:'영업1-3',name:'마포전업사',code:'21067'},
+{sp:'영업1-3',name:'문전사',code:'20159'},
+{sp:'영업1-3',name:'백전사',code:'20164'},
+{sp:'영업1-3',name:'삼성조명랜드',code:'20169'},
+{sp:'영업1-3',name:'삼원조명',code:'20912'},
+{sp:'영업1-3',name:'서진전기조명, 장원테이프',code:'23880'},
+{sp:'영업1-3',name:'신광전기상사',code:'21053'},
+{sp:'영업1-3',name:'이오산전(EO산전)',code:'20999'},
+{sp:'영업1-3',name:'주식회사 거목전기물류',code:'21061'},
+{sp:'영업1-3',name:'주식회사 빈스라이팅디엔티',code:'23669'},
+{sp:'영업1-3',name:'주식회사 삼광전기조명',code:'21066'},
+{sp:'영업1-3',name:'주식회사 에스케이디엘이디',code:'11086'},
+{sp:'영업1-3',name:'진흥전업(주)',code:'21059'},
+{sp:'영업1-3',name:'태양상사',code:'23667'},
+{sp:'영업1-2',name:'(주)팀트랜스',code:'10163'},
+{sp:'영업1-7',name:'(주)대명하이텍',code:'10620'},
+{sp:'영업1-4',name:'(주)보승전기',code:'10629'},
+{sp:'영업1-2',name:'(주)씨피엔텍',code:'10733'},
+{sp:'영업1-2',name:'기민전자(주)',code:'10798'},
+{sp:'영업1-1',name:'삼영전기(주)',code:'10801'},
+{sp:'영업1-6',name:'주식회사 이지엠테크',code:'10838'},
+{sp:'영업1-2',name:'(주)토탈룩스',code:'11062'},
+{sp:'영업1-2',name:'로보테크',code:'11080'},
+{sp:'영업1-4',name:'(유)대국전기상사',code:'20000'},
+{sp:'영업1-4',name:'(유)신일전기사',code:'20002'},
+{sp:'영업1-4',name:'(유)제일전기',code:'20003'},
+{sp:'영업1-5',name:'(주)강남대흥',code:'20004'},
+{sp:'영업1-3',name:'(주)뉴신영',code:'20008'},
+{sp:'영업1-7',name:'(주)대련전업사',code:'20013'},
+{sp:'영업1-2',name:'(주)대현전기',code:'20017'},
+{sp:'영업1-2',name:'(주)동부애드산업',code:'20018'},
+{sp:'영업1-4',name:'주식회사 서울아크릴',code:'20026'},
+{sp:'영업1-5',name:'(주)성경전기',code:'20027'},
+{sp:'영업1-2',name:'(주)성광전기조명',code:'20028'},
+{sp:'영업1-4',name:'(주)성우티에스디',code:'20029'},
+{sp:'영업1-3',name:'(주)세왕물류',code:'20030'},
+{sp:'영업1-4',name:'주식회사 신한기전',code:'20031'},
+{sp:'영업1-4',name:'(주)아성전기조명',code:'20033'},
+{sp:'영업1-3',name:'(주)에이치와이전기',code:'20037'},
+{sp:'영업1-2',name:'(주)우리디앤지',code:'20040'},
+{sp:'영업1-2',name:'(주)제일전기',code:'20042'},
+{sp:'영업1-1',name:'(주)태성전기상사',code:'20047'},
+{sp:'영업1-3',name:'(주)한들피엔에프',code:'20050'},
+{sp:'영업1-4',name:'(주)한성전기',code:'20052'},
+{sp:'영업1-5',name:'(주)한일LED전기조명',code:'20055'},
+{sp:'영업1-4',name:'(주)BW전기상사',code:'20056'},
+{sp:'영업1-2',name:'153전기조명',code:'20057'},
+{sp:'영업1-3',name:'광명전기',code:'20060'},
+{sp:'영업1-5',name:'금산전기(주)',code:'20063'},
+{sp:'영업1-3',name:'길전사(부산)',code:'20065'},
+{sp:'영업1-1',name:'남영전기',code:'20069'},
+{sp:'영업1-2',name:'다인전기조명',code:'20071'},
+{sp:'영업1-3',name:'대만상사',code:'20075'},
+{sp:'영업1-5',name:'대상전기',code:'20076'},
+{sp:'영업1-3',name:'대양전기상사',code:'20078'},
+{sp:'영업1-7',name:'대일전기',code:'20079'},
+{sp:'영업1-2',name:'대화이앤엘(주)',code:'20080'},
+{sp:'영업1-2',name:'동광조명(구로)',code:'20083'},
+{sp:'영업1-3',name:'마트전기조명',code:'20155'},
+{sp:'영업1-4',name:'문예채넬',code:'20158'},
+{sp:'영업1-3',name:'미광전기',code:'20160'},
+{sp:'영업1-1',name:'민전사',code:'20162'},
+{sp:'영업1-5',name:'범전사',code:'20165'},
+{sp:'영업1-2',name:'홈플러스(주)',code:'20170'},
+{sp:'영업1-3',name:'삼양사',code:'20171'},
+{sp:'영업1-1',name:'서원 조명',code:'20177'},
+{sp:'영업1-2',name:'세기광학기기',code:'20184'},
+{sp:'영업1-2',name:'알카전기',code:'20190'},
+{sp:'영업1-5',name:'우리전기(청계천)',code:'20197'},
+{sp:'영업1-4',name:'우리전기상사',code:'20198'},
+{sp:'영업1-2',name:'우리바이오(주)',code:'20200'},
+{sp:'영업1-2',name:'우리이앤엘하루틴(주)',code:'20201'},
+{sp:'영업1-3',name:'우성상사',code:'20203'},
+{sp:'영업1-2',name:'육영전기',code:'20212'},
+{sp:'영업1-2',name:'이전기자재마트(주)',code:'20214'},
+{sp:'영업1-2',name:'조성전업사',code:'20219'},
+{sp:'영업1-2',name:'조양전기',code:'20220'},
+{sp:'영업1-4',name:'종합전기조명',code:'20224'},
+{sp:'영업1-1',name:'청일전기',code:'20234'},
+{sp:'영업1-4',name:'칠성전기',code:'20235'},
+{sp:'영업1-3',name:'태성전기',code:'20236'},
+{sp:'영업1-2',name:'태주공업(주)',code:'20238'},
+{sp:'영업1-4',name:'하나전기플라자',code:'20239'},
+{sp:'영업1-4',name:'한양기업',code:'20245'},
+{sp:'영업1-1',name:'형제전기',code:'20248'},
+{sp:'영업1-2',name:'홈플러스스토어즈(주)',code:'20249'},
+{sp:'영업1-2',name:'JM상사',code:'20250'},
+{sp:'영업1-2',name:'SJ종합유통',code:'20251'},
+{sp:'영업1-2',name:'TESCO',code:'20252'},
+{sp:'영업1-3',name:'신화전기자재',code:'20253'},
+{sp:'영업1-2',name:'(주)서울조명',code:'20299'},
+{sp:'영업1-4',name:'성전사',code:'20310'},
+{sp:'영업1-2',name:'유유 플러스',code:'20313'},
+{sp:'영업1-3',name:'리드시스템 (LAED SYSTEM)',code:'20322'},
+{sp:'영업1-2',name:'광명종합유통',code:'20335'},
+{sp:'영업1-2',name:'(주)알토',code:'20341'},
+{sp:'영업1-2',name:'(주)무지개세상',code:'20387'},
+{sp:'영업1-2',name:'굿스 인터내셔널',code:'20392'},
+{sp:'영업1-4',name:'주식회사 성우티에스디',code:'20398'},
+{sp:'영업1-2',name:'동일상사',code:'20399'},
+{sp:'영업1-1',name:'서원조명',code:'20400'},
+{sp:'영업1-2',name:'(주)호예리아',code:'20402'},
+{sp:'영업1-4',name:'(주)성안ELD',code:'20403'},
+{sp:'영업1-1',name:'(주)광명종합물류',code:'20406'},
+{sp:'영업1-2',name:'(주)레이온',code:'20407'},
+{sp:'영업1-1',name:'(주)칠성',code:'20408'},
+{sp:'영업1-2',name:'남강컴퍼니',code:'20410'},
+{sp:'영업1-5',name:'이텍전기',code:'20412'},
+{sp:'영업1-2',name:'(주)에스와이에스리테일',code:'20413'},
+{sp:'영업1-2',name:'유영전기',code:'20414'},
+{sp:'영업1-2',name:'종합전기조명(구로)',code:'20415'},
+{sp:'영업1-5',name:'(주)서흥전기',code:'20416'},
+{sp:'영업1-2',name:'자모스 인터내셔널',code:'20417'},
+{sp:'영업1-5',name:'삼정인버터(주)',code:'20421'},
+{sp:'영업1-5',name:'(주)아텍스',code:'20423'},
+{sp:'영업1-4',name:'대영전기상사',code:'20425'},
+{sp:'영업1-5',name:'인성특수조명',code:'20426'},
+{sp:'영업1-3',name:'(주)동리',code:'20427'},
+{sp:'영업1-5',name:'(주)지오엘에스',code:'20428'},
+{sp:'영업1-3',name:'원 LED조명',code:'20429'},
+{sp:'영업1-2',name:'(주)원앤원플러스',code:'20431'},
+{sp:'영업1-5',name:'(주)한승',code:'20433'},
+{sp:'영업1-5',name:'허리우드LED',code:'20434'},
+{sp:'영업1-3',name:'아진 전기조명',code:'20436'},
+{sp:'영업1-4',name:'엘이오 유한회사',code:'20437'},
+{sp:'영업1-5',name:'BL라이텍',code:'20439'},
+{sp:'영업1-3',name:'원LED조명',code:'20441'},
+{sp:'영업1-5',name:'(주)엘티',code:'20443'},
+{sp:'영업1-5',name:'CJ라이팅',code:'20444'},
+{sp:'영업1-1',name:'(주)오대만물사',code:'20445'},
+{sp:'영업1-5',name:'철물의달인',code:'20446'},
+{sp:'영업1-5',name:'(주)선영전기',code:'20447'},
+{sp:'영업1-2',name:'동양조명(주)',code:'20448'},
+{sp:'영업1-2',name:'(주)마트킹권선',code:'20449'},
+{sp:'영업2-1',name:'(주)시공디자인',code:'20450'},
+{sp:'영업1-2',name:'청계전기',code:'20452'},
+{sp:'영업2-1',name:'명인 개발',code:'20454'},
+{sp:'영업1-4',name:'(주)엘이디에이앤에스',code:'20455'},
+{sp:'영업1-2',name:'주식회사 신세계이앤씨',code:'20456'},
+{sp:'영업1-2',name:'(주)에스티씨',code:'20458'},
+{sp:'영업1-2',name:'일성조명전기',code:'20459'},
+{sp:'영업1-1',name:'(주)엘룩스',code:'20551'},
+{sp:'영업2-1',name:'(주) 알에프텍',code:'20558'},
+{sp:'영업1-2',name:'케이라이팅(주)',code:'20562'},
+{sp:'영업1-2',name:'태양조명공업(주)',code:'20602'},
+{sp:'영업1-2',name:'우리이앤엘사내근로복지기금',code:'20647'},
+{sp:'영업1-2',name:'(주) 블루앤엘이디',code:'20687'},
+{sp:'영업1-4',name:'(주)비비에프티에스(FTS)',code:'20694'},
+{sp:'영업1-5',name:'(주)금동테크',code:'20751'},
+{sp:'영업1-5',name:'(주)셀텍월드',code:'20783'},
+{sp:'영업1-5',name:'유호아파트입주자대표회의',code:'20785'},
+{sp:'영업1-1',name:'아이루믹스',code:'20787'},
+{sp:'영업1-6',name:'정우전기조명(경산)',code:'20793'},
+{sp:'영업1-5',name:'(주)엘이디타운',code:'20795'},
+{sp:'영업1-2',name:'주식회사 베스라이트',code:'20796'},
+{sp:'영업1-3',name:'현우이앤엘',code:'20797'},
+{sp:'영업1-5',name:'(주)디와이전기산업',code:'20802'},
+{sp:'영업1-2',name:'명성물산(주)',code:'20806'},
+{sp:'영업1-4',name:'하라디포',code:'20810'},
+{sp:'영업1-2',name:'(주)라이트캔버스',code:'20811'},
+{sp:'영업1-3',name:'최효권',code:'20812'},
+{sp:'영업1-4',name:'나운전기 조명재료',code:'20814'},
+{sp:'영업1-1',name:'대원전기조명',code:'20817'},
+{sp:'영업1-1',name:'이레 전기조명',code:'20821'},
+{sp:'영업1-1',name:'(주)우리에스지에스',code:'20823'},
+{sp:'영업1-1',name:'(주)퍼스트하우징',code:'20825'},
+{sp:'영업2-1',name:'다 이소',code:'20826'},
+{sp:'영업1-7',name:'일륜전기',code:'20827'},
+{sp:'영업1-2',name:'블루카이트(주)',code:'20829'},
+{sp:'영업2-1',name:'(주)디자인파트너',code:'20831'},
+{sp:'영업1-2',name:'(주)오디텍',code:'20832'},
+{sp:'영업1-7',name:'태양조명(주)',code:'20835'},
+{sp:'영업1-1',name:'(주)제이에이전기조명',code:'20836'},
+{sp:'영업1-5',name:'태극조명',code:'20838'},
+{sp:'영업1-1',name:'(주)탑인터큐브',code:'20839'},
+{sp:'영업1-1',name:'신세계 엘이디조명',code:'20840'},
+{sp:'영업1-2',name:'(주)대한조명',code:'20842'},
+{sp:'영업1-1',name:'다원전기조명',code:'20843'},
+{sp:'영업1-1',name:'(주)지룩스',code:'20844'},
+{sp:'영업1-3',name:'(주)새손전기',code:'20845'},
+{sp:'영업1-1',name:'에이치에스',code:'20849'},
+{sp:'영업1-7',name:'(주)금강전기(인천)',code:'20850'},
+{sp:'영업1-1',name:'한솔전기조명',code:'20854'},
+{sp:'영업1-7',name:'(주)매직아워',code:'20857'},
+{sp:'영업1-1',name:'성광조명',code:'20858'},
+{sp:'영업1-1',name:'한빛전기조명',code:'20860'},
+{sp:'영업1-7',name:'우리전기조명',code:'20865'},
+{sp:'영업1-3',name:'LED 미',code:'20869'},
+{sp:'영업1-1',name:'바우인테리어&조명',code:'20874'},
+{sp:'영업1-3',name:'(주)닉스라이팅',code:'20877'},
+{sp:'영업1-1',name:'더블커머스',code:'20878'},
+{sp:'영업1-8',name:'진주전기조명',code:'20879'},
+{sp:'영업1-2',name:'조은조명',code:'20887'},
+{sp:'영업1-1',name:'삼우전기조명',code:'20890'},
+{sp:'영업1-1',name:'현대산업유통',code:'20892'},
+{sp:'영업1-7',name:'금호L&T',code:'20893'},
+{sp:'영업1-3',name:'(주)글로잭',code:'20895'},
+{sp:'영업1-5',name:'차종윤',code:'20896'},
+{sp:'영업1-2',name:'(주)엔티티',code:'20898'},
+{sp:'영업2-1',name:'JD인테리어',code:'20901'},
+{sp:'영업1-2',name:'광성전기조명',code:'20902'},
+{sp:'영업1-2',name:'(주)마트킹',code:'20905'},
+{sp:'영업1-4',name:'(주)대유라이팅',code:'20906'},
+{sp:'영업1-4',name:'우리조명',code:'20907'},
+{sp:'영업1-3',name:'LM전기조명',code:'20908'},
+{sp:'영업1-3',name:'요위(YOWI)',code:'20910'},
+{sp:'영업1-2',name:'(주)온새미',code:'20914'},
+{sp:'영업1-2',name:'(주)테라웍스',code:'20916'},
+{sp:'영업1-6',name:'고은빛LED조명',code:'20917'},
+{sp:'영업2-1',name:'(주)피더블유알',code:'20919'},
+{sp:'영업1-1',name:'현대산업유통(주)',code:'20920'},
+{sp:'영업2-1',name:'다비치안경(부천역점)',code:'20922'},
+{sp:'영업1-5',name:'(주)씨제이라이트',code:'20925'},
+{sp:'영업1-5',name:'(주)씨제이엘',code:'20926'},
+{sp:'영업2-1',name:'(주)창진',code:'20931'},
+{sp:'영업1-1',name:'(주)에코네트웍스',code:'20932'},
+{sp:'영업1-2',name:'엘엠전기조명(주)',code:'20938'},
+{sp:'영업1-1',name:'그린전기조명',code:'20942'},
+{sp:'영업2-1',name:'명인개발',code:'20943'},
+{sp:'영업1-2',name:'두원개발 주식회사',code:'20946'},
+{sp:'영업2-1',name:'엠에스디자인',code:'20947'},
+{sp:'영업1-7',name:'동원전기',code:'20949'},
+{sp:'영업1-2',name:'(주)신보',code:'20951'},
+{sp:'영업2-1',name:'(주)한웰이쇼핑',code:'20953'},
+{sp:'영업2-1',name:'(주)신세계토건',code:'20954'},
+{sp:'영업2-1',name:'해원전력주식회사',code:'20958'},
+{sp:'영업1-7',name:'오성',code:'20959'},
+{sp:'영업2-1',name:'윌커뮤니케이션(주)',code:'20961'},
+{sp:'영업1-2',name:'부록계전',code:'20967'},
+{sp:'영업2-1',name:'주요 이앤씨(주)',code:'20970'},
+{sp:'영업1-2',name:'주식회사 영창케미칼',code:'20971'},
+{sp:'영업1-2',name:'(주)필립상사',code:'21000'},
+{sp:'영업1-1',name:'주식회사 리코리테일',code:'21002'},
+{sp:'영업1-6',name:'아진전기조명',code:'21003'},
+{sp:'영업1-2',name:'주식회사 영창에스엔티',code:'21005'},
+{sp:'영업1-5',name:'충주전기상사',code:'21008'},
+{sp:'영업1-2',name:'신한금융투자(주)',code:'21009'},
+{sp:'영업2-1',name:'우성전기조명산업',code:'21014'},
+{sp:'영업2-1',name:'주식회사 세운전기',code:'21019'},
+{sp:'영업1-7',name:'주식회사 웰파',code:'21020'},
+{sp:'영업1-4',name:'큐브 앤 프로보노',code:'21024'},
+{sp:'영업1-5',name:'주식회사 에코이엠',code:'21026'},
+{sp:'영업1-2',name:'담아라이팅',code:'21028'},
+{sp:'영업1-3',name:'중앙전기',code:'21029'},
+{sp:'영업2-1',name:'다온하우징',code:'21032'},
+{sp:'영업1-7',name:'(주)서광테라',code:'21033'},
+{sp:'영업1-1',name:'은진통상',code:'21034'},
+{sp:'영업1-2',name:'일광전기조명총판',code:'21036'},
+{sp:'영업1-2',name:'주식회사 비비드라이트',code:'21037'},
+{sp:'영업1-1',name:'대영',code:'21038'},
+{sp:'영업1-2',name:'한화커넥트(주)',code:'21039'},
+{sp:'영업2-1',name:'아카데미타워상가관리단',code:'21041'},
+{sp:'영업1-3',name:'한스라이팅',code:'21044'},
+{sp:'영업1-2',name:'오남LED전기조명',code:'21047'},
+{sp:'영업2-1',name:'주식회사 제이더블유건축인테리어',code:'21048'},
+{sp:'영업1-1',name:'주식회사 그린전기조명',code:'21050'},
+{sp:'영업1-2',name:'국선전력(주)',code:'21052'},
+{sp:'영업1-3',name:'금성조명물류',code:'21055'},
+{sp:'영업1-7',name:'주식회사 시엠',code:'21057'},
+{sp:'영업1-4',name:'금성종합전기사',code:'21058'},
+{sp:'영업1-3',name:'제일전기물류',code:'21062'},
+{sp:'영업1-2',name:'주식회사 삼오전기',code:'21063'},
+{sp:'영업1-2',name:'주식회사 디오르',code:'21064'},
+{sp:'영업1-3',name:'LED마트 부산경남',code:'21065'},
+{sp:'영업2-1',name:'주식회사 마이다스플래닝에스제이',code:'23600'},
+{sp:'영업1-1',name:'지엔에스네이처(주)',code:'23606'},
+{sp:'영업1-5',name:'(주)원익',code:'23614'},
+{sp:'영업1-2',name:'(주)에스씨엘',code:'23619'},
+{sp:'영업1-3',name:'미미라이팅 대구지점',code:'23621'},
+{sp:'영업1-2',name:'아띠라이팅',code:'23627'},
+{sp:'영업1-2',name:'주식회사 오엘이디코리아',code:'23651'},
+{sp:'영업1-2',name:'(주)유니엠',code:'23668'},
+{sp:'영업1-3',name:'신광전기주식회사',code:'23672'},
+{sp:'영업1-2',name:'(주)제이트로닉스 김포사업장',code:'23676'},
+{sp:'영업1-2',name:'두원이에프씨(주)',code:'23677'},
+{sp:'영업1-2',name:'두원이엔지 주식회사',code:'23682'},
+{sp:'영업2-1',name:'(주)금샘',code:'23683'},
+{sp:'영업2-1',name:'(주)사이니스트',code:'23685'},
+{sp:'영업1-2',name:'(주)부평중앙지하상가',code:'23686'},
+{sp:'영업1-4',name:'사용안함)주식회사 비케이엘',code:'23687'},
+{sp:'영업1-2',name:'(주)주연전자',code:'23690'},
+{sp:'영업1-1',name:'(주)대림전기조명',code:'23691'},
+{sp:'영업1-2',name:'삼진종합물류',code:'23692'},
+{sp:'영업1-2',name:'서강대학교',code:'23696'},
+{sp:'영업1-2',name:'지에스파크24(주)',code:'23699'},
+{sp:'영업1-2',name:'한백이앤엘',code:'23700'},
+{sp:'영업1-3',name:'서아조명',code:'23701'},
+{sp:'영업1-5',name:'모든조명상사',code:'23704'},
+{sp:'영업1-5',name:'주식회사 주원케이블',code:'23709'},
+{sp:'영업1-2',name:'(주)마트킹 수원대',code:'23711'},
+{sp:'영업1-4',name:'녹색 전기,조명',code:'23917'},
+{sp:'영업1-2',name:'주식회사 거성종합전기',code:'24183'}];
+const DEFAULT_TMPL=
+`안녕하세요 [대리점]님,
+장수램프입니다. [날짜] 발송된 대신택배 안내드립니다.
+
+[내역]
+
+확인 부탁드립니다. 감사합니다!`;
+
+let dealers = load(KEY.dealers, null) || JSON.parse(JSON.stringify(BUILT_IN_DEALERS));
+// 명단 버전 체크 — 캐시가 내장본보다 적으면 자동 갱신 + 기존 송장 데이터 영업사원 재배정
+const DEALERS_VER=4;
+if(localStorage.getItem('jslamp_dealers_ver')!==String(DEALERS_VER) || dealers.length<BUILT_IN_DEALERS.length-20){
+  dealers=JSON.parse(JSON.stringify(BUILT_IN_DEALERS));
+  localStorage.setItem('jslamp_dealers_ver',String(DEALERS_VER));
+  saveDealers();
+  // 기존 송장 이력의 영업사원 재배정
+  try{
+    const hist=load('jslamp_inv_hist',[]);
+    let updated=false;
+    hist.forEach(h=>(h.rows||[]).forEach(r=>{
+      if(r.store && !r.sp){
+        const d=dealers.find(x=>x.name===r.store);
+        if(d&&d.sp){r.sp=d.sp;r.status='ok';updated=true;}
+      }
+    }));
+    if(updated)localStorage.setItem('jslamp_inv_hist',JSON.stringify(hist));
+  }catch(e){}
+}   // [{sp, name, code}]
+let template = localStorage.getItem(KEY.tmpl) || DEFAULT_TMPL;
+// 이전 양식 자동 업그레이드: [내역] 없으면 새 기본값으로 교체
+if(template && !template.includes('[내역]')){template=DEFAULT_TMPL;localStorage.setItem(KEY.tmpl,template);}
+let rows = [];          // [{store, waybill, fee, phone, recipient, sp, score, status}]
+let rowsDate = '';
+let history = load('jslamp_inv_hist',[]);  // [{date, rows}] 최대5일
+let currentSp = null;
+let mode = 'user';      // 'user' | 'admin'
+let view = 'home';
+let sentSet = new Set();
+
+function load(k,def){try{return JSON.parse(localStorage.getItem(k))||def}catch(e){return def}}
+function saveDealers(){localStorage.setItem(KEY.dealers,JSON.stringify(dealers))}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtDate(s){if(!s)return '';const p=s.split('-');return (p[1]||'')+'/'+(p[2]||'');}
+function saveHistory(){
+  const idx=history.findIndex(h=>h.date===rowsDate);
+  if(idx>=0)history[idx].rows=rows;else history.push({date:rowsDate,rows});
+  history.sort((a,b)=>b.date.localeCompare(a.date));
+  if(history.length>5)history=history.slice(0,5);
+  localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+  if(typeof autoPush==='function')autoPush();  // 클라우드 URL 설정돼 있으면 자동 업로드(2초 디바운스)
+}
+const saveRows=saveHistory; // 결과표 편집 시 호출되는 별칭
+function loadHistory(){
+  history=load('jslamp_inv_hist',[]);
+  // 이전 단일 저장소 마이그레이션
+  if(!history.length){const old=load(KEY.rows,null);if(old&&old.rows){history=[{date:todayStr(),rows:old.rows}];}}
+  if(history.length){rowsDate=history[0].date;rows=history[0].rows||[];}
+}
+function selectHistDate(d){rowsDate=d;const h=history.find(x=>x.date===d);rows=h?h.rows:[];renderHome();if(view==='send')renderSendList();}
+function allRows(){let a=[];history.forEach(h=>(h.rows||[]).forEach(r=>a.push({...r,_date:h.date})));return a;}
+
+
+/* ============ 유사도 ============ */
+function lev(a,b){const m=a.length,n=b.length,dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++)dp[i][0]=i;for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return dp[m][n];}
+function sim(a,b){a=(a||'').replace(/\s/g,'');b=(b||'').replace(/\s/g,'');if(!a&&!b)return 1;if(!a||!b)return 0;return 1-lev(a,b)/Math.max(a.length,b.length);}
+/* 한글 자모(초성·중성·종성) 거리: 같으면 0, 1개만 다르면 1, 2개 다르면 2, 3개 다르면 3 */
+function hangulJamoDist(c1,c2){
+  if(c1===c2)return 0;
+  const k1=c1.charCodeAt(0)-0xAC00, k2=c2.charCodeAt(0)-0xAC00;
+  if(k1<0||k1>11171||k2<0||k2>11171)return 2; // 한글 음절 아니면 안전하게 거리 2
+  const cho1=Math.floor(k1/588), jung1=Math.floor((k1%588)/28), jong1=k1%28;
+  const cho2=Math.floor(k2/588), jung2=Math.floor((k2%588)/28), jong2=k2%28;
+  return (cho1!==cho2?1:0)+(jung1!==jung2?1:0)+(jong1!==jong2?1:0);
+}
+/* 두 정규화 문자열이 길이가 같고 1글자만 substitution 차이일 때, 그 차이가 자모 1개 이하인지 */
+function isCloseSubstitution(a,b){
+  if(a.length!==b.length||a.length<2)return null;
+  let diffPos=-1;
+  for(let i=0;i<a.length;i++){
+    if(a[i]!==b[i]){
+      if(diffPos!==-1)return false; // 2글자 이상 다름
+      diffPos=i;
+    }
+  }
+  if(diffPos===-1)return true; // 완전 동일
+  return hangulJamoDist(a[diffPos],b[diffPos])<=1;
+}
+function matchDealer(name){
+  let best=null,bs=-1;
+  dealers.forEach(d=>{
+    let s=Math.max(sim(name,d.name),simN(name,d.name));
+    // 자모 거리 검증: 길이 같고 1글자만 다른데 그 글자가 자모 2개 이상 다르면 다른 대리점으로 간주 (대상전기↔대광전기 같은 케이스 차단)
+    const nn=normName(name), dn=normName(d.name);
+    if(nn.length>=2 && nn.length===dn.length && isCloseSubstitution(nn,dn)===false){
+      s=Math.min(s,0.4); // 매칭 임계값 0.6 미만으로 내려 매칭 안 되게
+    }
+    if(prefixMatch(name,d.name)){s=Math.max(s,0.85);}
+    if(s>bs){bs=s;best=d;}
+  });
+  return {dealer:best,score:bs};
+}
+// (주)·주식회사 등 법인형태·특수문자 제거 + 한영 음역(엘이디↔LED) 통일
+function normName(s){
+  return String(s||'')
+    .replace(/주식회사|㈜|\(주\)|\(유\)|유한회사|유한책임회사|합자회사|합명회사|협동조합|농업회사법인|\(농\)|\(재\)|재단법인|사단법인/g,'')
+    .replace(/엘이디|엘이디/g,'led')                    // 한글 음역 → 영문
+    .replace(/[\s\(\)\[\]\.,·∙・\-_/&]/g,'')
+    .toLowerCase();
+}
+function simN(a,b){return sim(normName(a),normName(b));}
+// 앞 n글자(기본4) 일치 — 짧은 이름은 더 짧은 쪽 길이만큼 비교(최소 2글자)
+function prefixMatch(a,b,n){
+  n=n||4;const na=normName(a),nb=normName(b);
+  const k=Math.min(n,na.length,nb.length);
+  if(k<2)return false;
+  return na.slice(0,k)===nb.slice(0,k);
+}
+
+/* ============ 파싱 ============
+   송장 이미지 열: 1지점명(생략) 2송장번호 3전화 4받는분 5대리점명 6택배비 */
+const WAYBILL=/(\d{3,4}[-‐–\.\s]+\d{2,3}[-‐–\.\s]+\d{4,6})/;
+let lastSkipped=[]; // 누락 줄 진단용
+/* === 택배비 기본 금액·OCR 보정 === 
+   사장님 운영 기준:
+   - 3,850원: 화물비 대납
+   - 5,060원: 소량
+   - 6,600원: 중간사이즈 1묶음 (1묶음씩 추가되면 배수)
+   - 7,700원: 평판 1285x320 1박스 (한 박스 미만이면 6,600)
+   OCR이 자리수를 늘려 읽는 경우 (예: 6600 → 66600) 자동 보정 */
+const STANDARD_FEES=[3850,5060,6600,7700];
+function normalizeFee(fee){
+  if(!fee||fee<=0)return fee;
+  if(STANDARD_FEES.includes(fee))return fee;
+  const s=String(fee);
+  // 첫 자리 숫자 중복 패턴만 보정 (66600 → 6600, 77700 → 7700, 55060 → 5060)
+  // ※ 끝자리 0 추가 패턴(66000→6600 등)은 10묶음=66,000원 같은 정상 금액과 충돌해서 보정 안 함
+  if(s.length>=5 && s[0]===s[1]){
+    const cand=parseInt(s.slice(1),10);
+    if(STANDARD_FEES.includes(cand))return cand;
+  }
+  return fee;
+}
+/* 합리적 택배비인지 판정: 기본 금액 또는 6,600/7,700/5,060의 배수 또는 조합 */
+function isReasonableFee(fee){
+  if(!fee||fee<=0)return true;  // 0원은 별도 처리
+  if(STANDARD_FEES.includes(fee))return true;
+  // 단일 금액 배수 (최대 10묶음·박스)
+  for(const base of STANDARD_FEES){if(fee%base===0 && fee/base<=10)return true;}
+  // 2가지 조합 (1묶음 + 1박스 등)
+  for(const a of STANDARD_FEES){
+    for(const b of STANDARD_FEES){
+      for(let i=1;i<=5;i++){
+        for(let j=1;j<=5;j++){
+          if(fee===a*i+b*j)return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function parseLine(line){
+  if(!line||!line.trim()) return null;
+  const m=line.match(WAYBILL); if(!m) return null;
+  let waybill=m[1].replace(/[-‐–\.\s]+/g,'-');
+  if(!/^\d{3,4}-\d{2,3}-\d{4,6}$/.test(waybill))return null;
+  let rest=line.slice(m.index+m[0].length);
+  // 줄 끝 잡음 제거 (OCR이 "7700." 같이 출력 / 중점·따옴표 등)
+  rest=rest.replace(/[\.,;:、。「」'"`\s]+$/,'');
+  // OCR 보정: 소수점 자리(.00, .5 등) 제거 → 한국식 천단위 . → , 변환
+  rest=rest.replace(/\.\d{1,2}\s*원?\s*$/,'');
+  rest=rest.replace(/(\d{1,3})\.(\d{3})(?!\d)/g,'$1,$2');
+  // 택배비 추출 — 숫자 사이 공백·쉼표도 허용 (OCR이 "6 600" 형태로 잘라 출력)
+  let fee=null;
+  const fm=rest.match(/([0-9](?:[0-9, ]*[0-9])?)\s*원?\s*$/);
+  if(fm){let n=parseInt(fm[1].replace(/[,\s]/g,''),10);if(!isNaN(n))fee=normalizeFee(n);rest=rest.slice(0,fm.index);}
+  // 전화번호 캡처(3열) — 공백·점·대시 모두 처리
+  let phone='';
+  const pm=rest.match(/(01[016789][-\s.]?\d{3,4}[-\s.]?\d{4})/);
+  if(pm)phone=pm[1].replace(/[\s.\-]/g,'').replace(/^(\d{3})(\d{4})(\d{4})$/,'$1-$2-$3');
+  // 전화번호 + 짧은 국번 제거
+  rest=rest.replace(/0\d{1,4}[-\s.]?\d{3,4}[-\s.]?\d{3,4}/g,' ');
+  rest=rest.replace(/\d{4,5}[-\s.]\d{3,4}/g,' ');
+  rest=rest.replace(/우리\s*조명/g,' ');
+  // 특수문자 제거 (중점·언더스코어·기타 OCR 잡음)
+  rest=rest.replace(/[|│:·∙・、。★☆※_~^]/g,' ');
+  const mid=rest.trim();
+  const toks=mid.split(/\s+/).filter(t=>t.length>=2&&!/^\d+$/.test(t));
+  const lastTok=toks.length?toks[toks.length-1]:'';
+  return {mid,lastTok,waybill,fee,phone};
+}
+function parseText(t){
+  const out=[];lastSkipped=[];
+  t.split(/\r?\n/).forEach(l=>{
+    if(!l.trim())return;                 // 빈 줄 무시
+    const p=parseLine(l);
+    if(p)out.push(p);
+    else lastSkipped.push({line:l.trim(),reason:'송장번호 형식 인식 실패'});
+  });
+  return out;
+}
+function fmtFee(n){return n==null?'-':n.toLocaleString('ko-KR')+'원';}
+
+/* 받는분에서 대리점명·숫자잡음·OCR잡음 제거 */
+function cleanRecipient(raw,dealerName){
+  if(!raw)return '';
+  const dn=normName(dealerName);
+  return raw.split(/\s+/).filter(t=>{
+    if(t.length<2)return false;
+    const tn=normName(t);
+    if(!tn)return false;                       // 특수문자만 (・, 、, __ 등)
+    if(tn===dn)return false;                   // 대리점명 동일
+    if(dn.length>=3&&tn.includes(dn))return false;
+    if(tn.length>=3&&dn.includes(tn))return false;
+    if(prefixMatch(t,dealerName))return false;
+    if(/^[\d.\-,]+$/.test(t))return false;     // 숫자 잡음
+    // fuzzy: 대리점명과 1글자 오차 토큰 제거 (다른이앤씨↔다온이앤씨)
+    if(tn.length>=4&&dn.length>=4&&Math.abs(tn.length-dn.length)<=1&&lev(tn,dn)<=1)return false;
+    return true;
+  }).join(' ');
+}
+
+/* 텍스트 안에서 등록 대리점을 찾는다 (가장 오른쪽=5열 위치 우선) */
+function findBestDealer(text){
+  if(!text||!dealers.length) return null;
+  const tn=normName(text); if(!tn) return null;
+  // 1차: substring 매칭 — 등록 대리점 이름이 텍스트에 그대로 나타나는 경우
+  //      오른쪽(5열 위치) 우선이지만, 가장 오른쪽이 매우 짧으면(2~3글자) 더 긴 매치를 우선
+  const matches=[];
+  dealers.forEach(d=>{
+    const dn=normName(d.name); if(dn.length<2) return;
+    const pos=tn.lastIndexOf(dn);
+    if(pos>=0) matches.push({d,pos,len:dn.length});
+  });
+  if(matches.length){
+    matches.sort((a,b)=>b.pos-a.pos||b.len-a.len);
+    let pick=matches[0];
+    if(pick.len<=3){
+      // 짧은 매치가 1등이면, 근처(15자 이내) 또는 텍스트 어디든 더 긴 매치가 있으면 그쪽으로
+      for(const m of matches){if(m.len>pick.len){pick=m;break;}}
+    }
+    return pick.d;
+  }
+  // 2차: prefix-4 매칭 (오른쪽 토큰부터)
+  const toks=text.replace(/[\d,]+/g,'').split(/\s+/).filter(t=>t.length>=2);
+  for(let i=toks.length-1;i>=0;i--){for(const d of dealers){if(prefixMatch(toks[i],d.name))return d;}}
+  // 3차: 정규화 후 ≤6자 + 길이차 ≤1 + lev ≤1 fuzzy 매칭
+  //      (사인↔샤인, 사인LED↔샤인LED 같은 1글자 오차/음역 케이스)
+  //      ※ 길이가 같고 1글자 substitution이면 자모 거리 ≤1만 허용 (대상전기↔대광전기 같은 오매칭 차단)
+  let fbest=null,fscore=99999;
+  for(let i=toks.length-1;i>=0;i--){
+    const tk=normName(toks[i]); if(tk.length<2||tk.length>6) continue;
+    for(const d of dealers){
+      const dn=normName(d.name);
+      if(dn.length<2||dn.length>6) continue;
+      if(Math.abs(dn.length-tk.length)>1) continue;
+      const lv=lev(dn,tk);
+      if(lv>1) continue;
+      // 같은 길이이고 1글자만 다르면 자모 거리 검증 (다른 자모 2개 이상이면 다른 대리점)
+      if(lv===1 && dn.length===tk.length && isCloseSubstitution(dn,tk)===false) continue;
+      const score=(d.sp?0:1000)+lv*100+(dn[0]===tk[0]?0:10);
+      if(score<fscore){fscore=score;fbest=d;}
+    }
+  }
+  return fbest;
+}
+
+function ingest(parsed){
+  const includeZero=document.getElementById('feeZero').checked;
+  const el=document.getElementById('invoiceDate');
+  rowsDate=el?el.value||todayStr():todayStr();
+  // 해당 날짜에 이미 저장된 데이터로 rows를 동기화 (사진을 여러 번 나눠 올려도 누적되게)
+  const existingDay=history.find(h=>h.date===rowsDate);
+  rows=existingDay?existingDay.rows:[];
+  parsed.forEach(p=>{
+    if(!p.waybill){lastSkipped.push({line:p.mid||'',reason:'송장번호 없음'});return;}
+    const hasFee=p.fee!=null&&p.fee>0;
+    if(!includeZero&&!hasFee){lastSkipped.push({line:p.mid+' / 송장 '+p.waybill,reason:'택배비 0원·미표기'});return;}
+    let dealer=findBestDealer(p.mid);
+    if(!dealer&&p.lastTok){const r=matchDealer(p.lastTok);if(r.dealer&&r.score>=0.6)dealer=r.dealer;}
+    let store,sp,status;
+    if(dealer){store=dealer.name;sp=dealer.sp;status='ok';}
+    else{store=p.lastTok||p.mid.split(/\s+/).pop()||'';sp='';status='warn';}
+    if(!store){lastSkipped.push({line:p.mid+' / 송장 '+p.waybill,reason:'대리점명 추출 실패'});return;}
+    const recipient=cleanRecipient(p.mid,store);
+    // 중복 검사: 송장번호+대리점+받는분+택배비 모두 일치할 때만 (한 필드라도 다르면 살림)
+    const dup=rows.find(r=>r.waybill===p.waybill&&r.store===store&&(r.recipient||'')===recipient&&(r.fee||0)===(p.fee||0));
+    if(dup){lastSkipped.push({line:p.mid+' / 송장 '+p.waybill,reason:'완전 동일 송장 (중복)'});return;}
+    rows.push({store,ocr:p.mid,waybill:p.waybill,fee:p.fee,phone:p.phone||'',recipient,sp,score:dealer?1:0,status,feeWarn:!isReasonableFee(p.fee)});
+  });
+  saveHistory();renderResult(lastSkipped.length);
+}
+
+/* 중복 송장 정리 — 송장번호+대리점+받는분+택배비 4개 모두 같을 때만 제거 */
+/* 전체 이력의 잘못된 택배비 일괄 보정 (OCR 오류 자동 수정) */
+function fixExistingFees(){
+  if(!confirm('전체 이력에서 OCR 오류로 잘못된 택배비를 일괄 보정합니다.\n\n자동 보정 패턴:\n  • 33,850 → 3,850\n  • 66,600 → 6,600\n  • 77,700 → 7,700\n  • 55,060 → 5,060\n\n진행할까요?'))return;
+  let fixed=0; const fixDetails=[];
+  history.forEach(h=>{
+    (h.rows||[]).forEach(r=>{
+      if(r.fee){
+        const corrected=normalizeFee(r.fee);
+        if(corrected!==r.fee){
+          fixDetails.push(`  ${h.date} ${r.store}: ${r.fee.toLocaleString()}원 → ${corrected.toLocaleString()}원`);
+          r.fee=corrected;
+          r.feeWarn=!isReasonableFee(r.fee);
+          fixed++;
+        }else{
+          // 보정 안 됐어도 feeWarn 상태 갱신
+          r.feeWarn=!isReasonableFee(r.fee);
+        }
+      }
+    });
+  });
+  if(fixed===0){alert('자동 보정 대상이 없습니다.\n(첫 자리 중복 패턴인 OCR 오류만 자동 보정합니다)');return;}
+  // 현재 보고 있는 날짜 rows 갱신
+  const cur=history.find(h=>h.date===rowsDate);
+  rows=cur?cur.rows:[];
+  localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+  if(typeof autoPush==='function')autoPush();
+  renderResult();renderHome();
+  const sample=fixDetails.slice(0,5).join('\n');
+  alert(`택배비 ${fixed}건을 자동 보정했습니다.\n\n예시:\n${sample}${fixDetails.length>5?`\n... 외 ${fixDetails.length-5}건`:''}`);
+}
+
+function removeDuplicates(){
+  if(!rows.length&&!history.length){alert('정리할 송장이 없습니다');return;}
+  if(!confirm('완전히 동일한 송장(송장번호·대리점·받는분·택배비가 모두 같음)만 정리할까요?\n한 필드라도 다르면 둘 다 살아남습니다.'))return;
+  const seen=new Set(); let removed=0;
+  history.sort((a,b)=>b.date.localeCompare(a.date));
+  history.forEach(h=>{
+    h.rows=h.rows.filter(r=>{
+      if(!r.waybill)return true;
+      const key=`${r.waybill}|${r.store||''}|${r.recipient||''}|${r.fee||0}`;
+      if(seen.has(key)){removed++;return false;}
+      seen.add(key);return true;
+    });
+  });
+  const cur=history.find(h=>h.date===rowsDate);
+  rows=cur?cur.rows:[];
+  localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+  if(typeof autoPush==='function')autoPush();
+  renderResult();renderHome();
+  alert(`완전 동일 중복 ${removed}건을 정리했습니다.\n남은 송장: ${allRows().filter(r=>r.waybill).length}건`);
+}
+
+/* 현재 날짜의 모든 송장 비우기 (다시 시작용) */
+function clearTodayRows(){
+  if(!rows.length){alert('비울 데이터가 없습니다');return;}
+  if(!confirm(`${rowsDate} 날짜의 송장 ${rows.length}건을 모두 지울까요?\n(다른 날짜 데이터는 그대로 유지됩니다)`))return;
+  rows=[];
+  const idx=history.findIndex(h=>h.date===rowsDate);
+  if(idx>=0)history.splice(idx,1);
+  localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+  if(typeof autoPush==='function')autoPush();
+  lastSkipped=[];
+  renderResult();renderHome();
+  document.getElementById('resultCard').style.display='none';
+  document.getElementById('thumbs').innerHTML='';
+}
+
+/* ============ OCR ============ */
+const imgInput=document.getElementById('imgInput');
+const dropZone=document.getElementById('dropZone');
+const thumbs=document.getElementById('thumbs');
+function showThumbs(files){thumbs.innerHTML='';files.forEach((f,i)=>{const u=URL.createObjectURL(f);const d=document.createElement('div');d.className='th';d.innerHTML=`<img src="${u}"><b>${i+1}</b>`;thumbs.appendChild(d);});}
+async function runOCR(files){
+  files=[...files].filter(f=>f&&f.type&&f.type.startsWith('image/'));
+  if(!files.length){alert('이미지 파일이 아니에요.');return;}
+  showThumbs(files);
+  const st=document.getElementById('ocrStatus'),bar=document.getElementById('ocrBar'),txt=document.getElementById('ocrText');
+  st.classList.add('show');let worker;
+  try{
+    txt.textContent=files.length>1?`${files.length}장 인식 준비 중…`:'한글 인식 모듈 준비 중…';bar.style.width='8%';
+    worker=await Tesseract.createWorker('kor',1,{logger:m=>{if(m.status==='recognizing text'){bar.style.width=(15+m.progress*80)+'%';}}});
+    let all=[];
+    for(let i=0;i<files.length;i++){
+      txt.textContent=files.length>1?`📸 사진 ${i+1}/${files.length} 인식 중…`:'글자 읽는 중…';
+      const {data}=await worker.recognize(files[i]);
+      all.push(...parseText(data.text));
+    }
+    bar.style.width='100%';await worker.terminate();st.classList.remove('show');bar.style.width='0%';
+    if(!all.length){alert('송장번호를 찾지 못했어요. 사진이 선명한지 확인하거나 텍스트 붙여넣기를 이용하세요.');return;}
+    const beforeCount=rows.length;
+    ingest(all);
+    const addedCount=rows.length-beforeCount;
+    if(files.length>1||beforeCount>0){
+      // 여러 장 처리 or 누적된 경우 알림
+      setTimeout(()=>alert(`✅ 사진 ${files.length}장 처리 완료\n\n· 이번에 추가: ${addedCount}건\n· 현재 총 ${rows.length}건 (${rowsDate})`),100);
+    }
+  }catch(err){
+    console.error(err);st.classList.remove('show');if(worker)try{await worker.terminate()}catch(_){}
+    const msg=String(err&&err.message||err);
+    if(/Worker|SecurityError|blob|origin|import/i.test(msg)){
+      showOcrBlocked();
+    }else{
+      alert('인식 중 오류가 났어요. 인터넷 연결을 확인하거나 아래 "텍스트로 직접 붙여넣기"를 이용하세요.');
+    }
+  }
+}
+function showOcrBlocked(){
+  const box=document.getElementById('ocrBlocked');if(box)box.style.display='block';
+}
+imgInput.addEventListener('change',e=>{const f=[...e.target.files];imgInput.value='';if(f.length)runOCR(f);});
+dropZone.addEventListener('click',()=>imgInput.click());
+dropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();imgInput.click();}});
+['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.classList.add('drag');}));
+['dragleave','dragend'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('drag');}));
+dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('drag');const f=[...(e.dataTransfer.files||[])];if(f.length)runOCR(f);});
+window.addEventListener('paste',e=>{if(view!=='input')return;const items=(e.clipboardData||{}).items||[];const imgs=[];for(const it of items){if(it.kind==='file'&&it.type.startsWith('image/')){const f=it.getAsFile();if(f)imgs.push(f);}}if(imgs.length){e.preventDefault();runOCR(imgs);}});
+function parsePasted(){const t=document.getElementById('pasteBox').value;const p=parseText(t);if(!p.length){alert('송장번호가 포함된 줄을 찾지 못했어요.');return;}ingest(p);document.getElementById('pasteBox').value='';}
+
+/* ============ 결과 표(관리자) ============ */
+function renderResult(skipped){
+  const card=document.getElementById('resultCard');const desc=card.querySelector('.desc');
+  if(!rows.length){
+    document.getElementById('summary').innerHTML='';document.getElementById('resultTbl').innerHTML='';
+    if(skipped){card.style.display='block';desc.innerHTML=`택배비가 적힌 행이 없어 <b>${skipped}건이 제외</b>됐어요. 0원 행도 포함하려면 위 체크박스를 켜세요.`;}
+    else card.style.display='none';
+    return;
+  }
+  card.style.display='block';
+  desc.innerHTML='대리점명을 등록 명단과 대조했습니다. <span class="pill warn">확인필요</span>는 직접 확인하세요. 택배비도 수정 가능.';
+  const tbl=document.getElementById('resultTbl');
+  let html=`<thead><tr><th>대리점명</th><th>송장번호</th><th>택배비</th><th>영업사원</th><th>상태</th><th></th></tr></thead><tbody>`;
+  rows.forEach((r,i)=>{
+    const pill=r.status==='ok'?'<span class="pill ok">매칭</span>':r.status==='mid'?'<span class="pill mid">확인</span>':'<span class="pill warn">확인필요</span>';
+    const feeBg=r.feeWarn?'background:#fff3e0;border:1px solid #f3a847':'';
+    const feeIcon=r.feeWarn?'<span title="기본 금액(3,850/5,060/6,600/7,700) 또는 그 배수가 아님" style="color:#c14242;margin-right:3px">⚠</span>':'';
+    html+=`<tr>
+      <td><input value="${esc(r.store)}" oninput="editRow(${i},'store',this.value)" style="min-width:84px"></td>
+      <td><input class="wb" value="${esc(r.waybill)}" oninput="editRow(${i},'waybill',this.value)" style="min-width:158px;font-family:ui-monospace,monospace;letter-spacing:-0.3px"></td>
+      <td style="white-space:nowrap">${feeIcon}<input class="wb" value="${r.fee==null?'':r.fee}" oninput="editRow(${i},'fee',this.value)" style="min-width:60px;text-align:right;${feeBg}" inputmode="numeric"></td>
+      <td><select onchange="editRow(${i},'sp',this.value)" style="min-width:76px">${spSelectOptions(r.sp)}</select></td>
+      <td>${pill}</td><td><button class="delx" onclick="delRow(${i})">×</button></td></tr>`;
+  });
+  tbl.innerHTML=html+`</tbody>`;
+  const ok=rows.filter(r=>r.status==='ok').length, warn=rows.filter(r=>r.status!=='ok').length;
+  const feeWarnCnt=rows.filter(r=>r.feeWarn).length;
+  const feeSum=rows.reduce((a,r)=>a+(r.fee||0),0);
+  document.getElementById('summary').innerHTML=
+    `<div class="stat"><b>${rows.length}</b><span>택배비 행</span></div>
+     <div class="stat"><b style="color:var(--green)">${ok}</b><span>자동 매칭</span></div>
+     <div class="stat"><b style="color:${warn?'var(--red)':'var(--green)'}">${warn}</b><span>확인 필요</span></div>
+     <div class="stat"><b style="color:${feeWarnCnt?'#c14242':'var(--green)'}">${feeWarnCnt}</b><span>⚠ 택배비 검토</span></div>
+     <div class="stat"><b style="font-size:15px">${feeSum.toLocaleString('ko-KR')}</b><span>택배비합(원)</span></div>`;
+  // 누락 줄 진단 패널
+  const skipBox=document.getElementById('skipBox');
+  if(lastSkipped&&lastSkipped.length){
+    skipBox.style.display='block';
+    skipBox.innerHTML=`<div style="background:#fff3e6;border:1px solid #f3c98c;border-radius:10px;padding:12px;margin-top:12px"><div style="font-weight:700;font-size:13px;color:#a05c1a;margin-bottom:6px">⚠️ ${lastSkipped.length}줄이 누락됐어요 — <span style="text-decoration:underline;cursor:pointer" onclick="document.getElementById('skipList').style.display=document.getElementById('skipList').style.display==='none'?'block':'none'">자세히 보기</span></div><div id="skipList" style="display:none;font-size:11.5px;max-height:200px;overflow:auto;background:white;padding:8px;border-radius:6px;border:1px solid #eadaba">${lastSkipped.map((s,i)=>`<div style="padding:4px 0;border-bottom:1px dashed #eee"><b>[${i+1}] ${esc(s.reason)}</b><br><span style="color:#666">${esc(s.line.slice(0,100))}</span></div>`).join('')}</div></div>`;
+  }else skipBox.style.display='none';
+}
+function editRow(i,f,v){
+  if(f==='fee'){const n=parseInt(String(v).replace(/[^\d]/g,''),10);rows[i].fee=isNaN(n)?null:n;rows[i].feeWarn=!isReasonableFee(rows[i].fee);saveRows();return;}
+  rows[i][f]=v;
+  if(f==='store'){const {dealer,score}=matchDealer(v);if(dealer&&score>=0.8){rows[i].sp=dealer.sp;rows[i].status='ok';}else if(dealer&&score>=0.55){rows[i].status='mid';}else{rows[i].status='warn';}renderResult();}
+  if(f==='sp'){rows[i].status=v?'ok':'warn';renderResult();}
+  saveRows();
+}
+function delRow(i){rows.splice(i,1);saveRows();renderResult();}
+function addRow(){rows.push({store:'',ocr:'',waybill:'',fee:null,sp:'',score:0,status:'warn'});renderResult();}
+function uniqueSp(){return [...new Set(dealers.map(d=>d.sp).filter(Boolean))];}
+function spSelectOptions(sel){let o=`<option value=""${sel?'':' selected'}>(미지정)</option>`;SP_CODES.forEach(s=>{o+=`<option${s===sel?' selected':''}>${esc(s)}</option>`;});if(sel&&!SP_CODES.includes(sel))o+=`<option selected>${esc(sel)}</option>`;return o;}
+
+/* ============ 홈: 담당자 ============ */
+function renderHome(){
+  // 날짜 선택 (우측, 날짜+건수 가로 배치)
+  const dp=document.getElementById('datePills');
+  if(history.length){
+    dp.innerHTML='<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<span style="font-size:11.5px;font-weight:700;color:var(--sub)">📅</span>'+
+      history.map(h=>{
+        const sel=h.date===rowsDate;
+        const rc=(h.rows||[]).filter(r=>r.waybill).length;
+        return `<div class="sp-chip${sel?' on':''}" style="min-width:auto;padding:7px 12px;display:inline-flex;align-items:center;gap:6px" onclick="selectHistDate('${h.date}')"><b style="font-size:13.5px">${fmtDate(h.date)}</b><span style="font-size:11.5px;color:${sel?'var(--amber-d)':'var(--sub)'};font-weight:600">${rc}건</span></div>`;
+      }).join('')+'</div>';
+  }else dp.innerHTML='';
+  // 담당자 그리드 (4열×2줄, 마지막 빈칸)
+  const grid=document.getElementById('repGrid');
+  const cnt={};rows.forEach(r=>{if(r.sp&&r.waybill)cnt[r.sp]=(cnt[r.sp]||0)+1;});
+  let chips=SP_CODES.map(s=>{const c=cnt[s]||0;return `<div class="rep-chip" onclick="selectRep('${esc(s)}')"><div class="nm">${esc(s)}</div><div class="ct ${c?'':'zero'}">${c}건</div></div>`;});
+  chips.push('<div></div>'); // 8번째 빈칸
+  grid.innerHTML=chips.join('');
+  document.getElementById('basisHome').textContent=rowsDate?`${fmtDate(rowsDate)} 기준 · ${rows.filter(r=>r.waybill).length}건`:'';
+}
+function selectRep(s){currentSp=s;showView('send');}
+function goUpload(){if(mode==='admin')showView('input');else openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('input');});}
+function goSetup(){if(mode==='admin')showView('setup');else openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('setup');});}
+
+/* ============ 발송 ============ */
+function buildMsg(store,items){
+  const multi=items.length>1;
+  const detail=items.map((it,i)=>{
+    const num=multi?(i+1)+') ':'';
+    let l='📦 '+num+'송장: '+it.wb;
+    if(it.recipient)l+='\n   받는분: '+it.recipient+(it.phone?' ('+it.phone+')':'');
+    else if(it.phone)l+='\n   전화: '+it.phone;
+    if(it.fee!=null)l+='\n   택배비: '+fmtFee(it.fee);
+    return l;
+  }).join('\n\n');
+  return template
+    .replace(/\[대리점\]/g,store)
+    .replace(/\[날짜\]/g,fmtDate(rowsDate))
+    .replace(/\[내역\]/g,detail)
+    .replace(/\[송장번호\]/g,items.map(it=>it.wb).join('\n'))
+    .replace(/\[택배비\]/g,items.map(it=>fmtFee(it.fee)).join('\n'));
+}
+let sendItems=[];
+function renderSendList(){
+  const wrap=document.getElementById('sendList');
+  if(!currentSp){wrap.innerHTML='';return;}
+  const map={};rows.forEach(r=>{if(r.sp===currentSp&&r.waybill)(map[r.store]=map[r.store]||[]).push({wb:r.waybill,fee:r.fee,phone:r.phone||'',recipient:r.recipient||''});});
+  const stores=Object.keys(map);
+  if(!stores.length){wrap.innerHTML=`<div class="empty"><div class="big">📭</div><b>${esc(currentSp)}</b> 담당 대리점 중<br>오늘 송장이 있는 곳이 없어요.</div>`;return;}
+  sendItems=[];
+  const done=stores.filter(s=>sentSet.has(currentSp+'|'+s)).length;
+  let html=`<div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+      <div><b style="font-size:15px">${esc(currentSp)}</b> 담당 <span style="color:var(--sub);font-size:12.5px">· ${stores.length}곳</span></div>
+      <div style="font-size:12.5px;color:var(--green);font-weight:700">완료 ${done}/${stores.length}</div></div>`;
+  stores.forEach(store=>{
+    const items=map[store],id=currentSp+'|'+store,dn=sentSet.has(id),msg=buildMsg(store,items);
+    const feeTot=items.reduce((a,it)=>a+(it.fee||0),0),idx=sendItems.length;sendItems.push({id,msg});
+    html+=`<div class="send-card ${dn?'done':''}">
+      <div class="top"><div><div class="store">${esc(store)}</div><div class="meta">송장 ${items.length}건 · 택배비 ${feeTot.toLocaleString('ko-KR')}원${dn?' · ✅ 발송함':''}</div></div>
+      ${dn?`<button class="btn btn-ghost btn-sm" onclick="toggleDone('${esc(id)}')">↩︎ 되돌리기</button>`:''}</div>
+      <div class="msgbox">${esc(msg)}</div>
+      <div class="acts"><button class="btn btn-amber btn-sm" style="flex:2" onclick="copyMsg(${idx})">${navigator.share?'📤 카톡으로 보내기':'📋 메시지 복사'}</button>
+      ${dn?'':`<button class="btn btn-ghost btn-sm" style="flex:1" onclick="toggleDone('${esc(id)}')">완료 표시</button>`}</div></div>`;
+  });
+  html+=`<p class="hint" style="text-align:center;margin:6px 4px 20px">${navigator.share?'📤 누르면 공유 창이 열리고 → 카카오톡 → 받는 사람 선택 순서로 보낼 수 있어요.':'📋 복사 → 카카오톡에서 해당 대리점 채팅방에 붙여넣기 하세요.'}</p>`;
+  wrap.innerHTML=html;
+}
+async function copyMsg(idx){
+  const it=sendItems[idx]; if(!it) return;
+  const done=()=>{showToast(); sentSet.add(it.id); renderSendList();};
+  // 모바일이면 공유 시트 → 카톡 선택 → 대화방 선택 → 전송
+  if(navigator.share){
+    try{ await navigator.share({text: it.msg}); done(); return; }
+    catch(e){ if(e.name==='AbortError') return; /* 외 에러는 복사로 폴백 */ }
+  }
+  // 데스크탑·미지원 환경: 클립보드 복사
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(it.msg).then(done).catch(()=>fb(it.msg,done));
+  else fb(it.msg,done);
+}
+function fb(msg,cb){const ta=document.createElement('textarea');ta.value=msg;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta);cb&&cb();}
+function toggleDone(id){if(sentSet.has(id))sentSet.delete(id);else sentSet.add(id);renderSendList();}
+let toastT;function showToast(){const t=document.getElementById('toast');t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1400);}
+
+/* ============ 대리점 조회 ============ */
+function doLookup(){
+  const name=document.getElementById('lkName').value.trim();
+  const code=document.getElementById('lkCode').value.replace(/[^\d]/g,'').trim();
+  const out=document.getElementById('lkResult');
+  // 대리점명·코드 둘 다 필수 입력
+  if(!name || !code){alert('대리점명과 대리점 코드를 모두 입력해 주세요.');return;}
+  // 조회 차단 영업그룹 (해당 담당자 대리점은 검색해도 안 나옴)
+  const BLOCKED_SP=['영업1-3','영업1-5','영업1-7'];
+  // 코드로 대리점 찾기 (코드가 마스터 명단에 있어야 함)
+  const dealer=dealers.find(d=>String(d.code||'')===code);
+  if(!dealer || BLOCKED_SP.includes(dealer.sp)){
+    // 차단 대상이거나 없는 코드는 동일한 문구로 응답 (차단 사실 노출 안 함)
+    out.innerHTML=`<div class="empty"><div class="big">❓</div>일치하는 대리점 코드가 없습니다.<br>대리점 코드를 확인해 주세요.</div>`;
+    return;
+  }
+  // 이름 교차 검증: 등록된 대리점명과 입력한 이름이 매칭돼야 함
+  const nn=normName(name), dn=normName(dealer.name);
+  const nameOk = (nn===dn) || (dn.length>=2 && dn.includes(nn) && nn.length>=2) || (nn.length>=2 && nn.includes(dn) && dn.length>=2) || simN(name,dealer.name)>=0.6;
+  if(!nameOk){
+    out.innerHTML=`<div class="empty"><div class="big">⚠️</div>대리점명과 코드가 서로 일치하지 않습니다.<br><span style="font-size:11.5px;color:var(--sub);margin-top:6px;display:inline-block">코드 ${esc(code)}에 등록된 이름을 다시 확인해 주세요</span></div>`;
+    return;
+  }
+  const targetName=dealer.name;
+  // 송장 데이터에서 해당 대리점 행 찾기 — 5일 이력 전체
+  const all=allRows();
+  const items=all.filter(r=>{
+    if(!r.waybill)return false;
+    if(r.store===dealer.name)return true;
+    if(simN(r.store,targetName)>=0.75 || prefixMatch(r.store,targetName))return true;
+    return false;
+  });
+  const feeTot=items.reduce((a,r)=>a+(r.fee||0),0);
+  let html=`<div class="lk-head"><div class="nm">${esc(targetName)}</div><div class="sub">담당 ${esc(dealer.sp||'-')} · 코드 ${esc(String(dealer.code))} · 송장 ${items.length}건 · 택배비 합계 ${feeTot.toLocaleString('ko-KR')}원 · 최근 5일 이력</div></div>`;
+  if(!items.length){
+    const total=all.filter(r=>r.waybill).length;
+    const days=history.length;
+    if(total===0){
+      html+=`<div class="empty"><div class="big">📭</div>이 기기에 저장된 송장이 <b>0건</b>입니다.<br><span style="font-size:12px;color:var(--sub)">📥 송장 올리기로 먼저 데이터를 등록해 주세요</span></div>`;
+    }else{
+      html+=`<div class="empty"><div class="big">📭</div>이 대리점은 최근 5일간 송장 내역이 없습니다.<br><span style="font-size:11.5px;color:var(--sub)">(이 기기에 저장된 전체 송장: ${total}건 · ${days}일치)</span></div>`;
+    }
+  }
+  else items.forEach(r=>{html+=`<div class="lk-item"><div><span class="wb">${esc(r.waybill)}</span>${r.recipient?'<span style="font-size:12px;color:var(--sub);margin-left:8px">'+esc(r.recipient)+'</span>':''}</div><div style="text-align:right"><span class="fee">${fmtFee(r.fee)}</span><div style="font-size:10px;color:var(--sub)">${fmtDate(r._date||'')}</div></div></div>`;});
+  out.innerHTML=html;
+}
+
+/* ============ 대리점 관리 ============ */
+function importDealers(replace){
+  const t=document.getElementById('dealerImport').value.trim();
+  if(!t){alert('명단을 붙여넣어 주세요.');return;}
+  const parsed=[];
+  t.split(/\r?\n/).forEach(line=>{
+    const p=line.split(/[,\t]/);
+    if(p.length>=2){
+      const sp=(p[0]||'').trim();
+      const name=(p[1]||'').trim();
+      const code=(p[2]||'').replace(/[^\d]/g,'').trim();
+      if(name) parsed.push({sp,name,code:code||''});
+    }
+  });
+  if(!parsed.length){alert('형식을 확인하세요. "영업사원,대리점명,코드" 형태여야 합니다.');return;}
+  if(replace)dealers=parsed;
+  else parsed.forEach(p=>{const ex=dealers.find(d=>d.name===p.name&&String(d.code)===String(p.code));if(ex){if(p.sp)ex.sp=p.sp;}else dealers.push(p);});
+  saveDealers();document.getElementById('dealerImport').value='';renderDealerList();renderHome();
+  alert(`완료! 대리점 ${dealers.length}곳`);
+}
+function renderDealerList(){
+  document.getElementById('dealerCount').textContent=`(${dealers.length}곳)`;
+  const wrap=document.getElementById('dealerList');
+  if(!dealers.length){wrap.innerHTML='<p class="hint">아직 등록된 대리점이 없습니다.</p>';return;}
+  const by={};dealers.forEach((d,i)=>{(by[d.sp]=by[d.sp]||[]).push({...d,i});});
+  let html='';Object.keys(by).forEach(sp=>{html+=`<div style="margin-top:8px;font-size:12px;font-weight:800;color:var(--amber-d)">${esc(sp)} · ${by[sp].length}곳</div>`;
+    by[sp].forEach(d=>{html+=`<div class="dealer-line"><span class="nm">${esc(d.name)}</span>${d.code?`<span class="cd">${esc(String(d.code))}</span>`:''}<button class="delx" onclick="delDealer(${d.i})">×</button></div>`;});});
+  wrap.innerHTML=html;
+}
+function delDealer(i){dealers.splice(i,1);saveDealers();renderDealerList();renderHome();}
+function resetDealers(){if(!confirm('내장 기본값(627곳)으로 되돌릴까요? 직접 수정한 내용은 사라집니다.'))return;dealers=JSON.parse(JSON.stringify(BUILT_IN_DEALERS));saveDealers();renderDealerList();renderHome();alert('기본값으로 복원했어요.');}
+
+/* === 데이터 백업·복원 (기기 간 공유용) === */
+function exportData(){
+  const data={version:1,exportedAt:new Date().toISOString(),history:history,template:template};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`장수램프_송장백업_${todayStr().replace(/-/g,'')}.json`;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+  const total=allRows().filter(r=>r.waybill).length;
+  const st=document.getElementById('dataStatus');
+  if(st)st.innerHTML=`✅ 내보내기 완료 — 송장 ${total}건 · ${history.length}일치<br><span style="color:var(--amber-d);font-size:11px">이 파일을 카톡으로 다른 기기에 보낸 뒤 그곳에서 "불러오기"</span>`;
+}
+function importData(event){
+  const file=event.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.history&&!data.template)throw new Error('백업 파일 형식이 아닙니다');
+      const oldCount=allRows().filter(r=>r.waybill).length;
+      if(data.history&&Array.isArray(data.history)){
+        let mode='replace';
+        if(oldCount>0){
+          mode=confirm(`현재 이 기기에 송장 ${oldCount}건이 있습니다.\n\n[확인] 불러온 데이터로 교체\n[취소] 기존 데이터와 합치기`)?'replace':'merge';
+        }
+        if(mode==='merge'){
+          data.history.forEach(h=>{
+            const idx=history.findIndex(x=>x.date===h.date);
+            if(idx>=0){const ex=new Set((history[idx].rows||[]).map(r=>r.waybill));(h.rows||[]).forEach(r=>{if(!ex.has(r.waybill))history[idx].rows.push(r);});}
+            else history.push(h);
+          });
+        }else{history=data.history;}
+        history.sort((a,b)=>b.date.localeCompare(a.date));
+        if(history.length>5)history=history.slice(0,5);
+        localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+      }
+      if(data.template){template=data.template;localStorage.setItem(KEY.tmpl,template);const tb=document.getElementById('tmplBox');if(tb)tb.value=template;}
+      loadHistory();renderHome();
+      const total=allRows().filter(r=>r.waybill).length;
+      const st=document.getElementById('dataStatus');if(st)st.innerHTML=`✅ 불러오기 완료 — 송장 <b>${total}건</b> · ${history.length}일치`;
+      alert(`데이터를 불러왔어요!\n송장 ${total}건 · ${history.length}일치`);
+    }catch(err){alert('파일을 읽지 못했어요: '+err.message);}
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+/* === ☁️ Firebase Realtime Database 동기화 === */
+function getFbUrl(){
+  // 우선순위: ?fb= 쿼리 파라미터 → localStorage
+  const q=new URLSearchParams(location.search).get('fb');
+  if(q){
+    const decoded=decodeURIComponent(q).replace(/\/$/,'');
+    if(localStorage.getItem('jslamp_fb_url')!==decoded)localStorage.setItem('jslamp_fb_url',decoded);
+    return decoded;
+  }
+  return (localStorage.getItem('jslamp_fb_url')||'').replace(/\/$/,'');
+}
+function copyShareUrl(){
+  const url=getFbUrl();
+  if(!url){alert('먼저 Firebase URL을 연결해 주세요');return;}
+  const shareUrl=location.origin+location.pathname+'?fb='+encodeURIComponent(url);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(shareUrl).then(()=>{
+      alert(`✅ 공유 링크 복사됨!\n\n이 링크를 영업사원·대리점에 카톡으로 보내면 별도 설정 없이 데이터를 봅니다.\n\n${shareUrl.slice(0,80)}...`);
+    });
+  }else{prompt('아래 링크를 복사하세요:',shareUrl);}
+}
+let _pushTimer=null;
+function autoPush(){
+  if(!getFbUrl())return;
+  clearTimeout(_pushTimer);
+  _pushTimer=setTimeout(()=>{pushToCloud(true).catch(()=>{});},2000);
+}
+function updateFbStatus(msg){
+  const st=document.getElementById('fbStatus'); if(!st)return;
+  if(msg){st.innerHTML=msg;return;}
+  const url=getFbUrl();
+  st.innerHTML=url?`🟢 연결됨: <span style="font-size:11px;font-family:ui-monospace,monospace">${url.replace('https://','').slice(0,38)}…</span>`:'⚪ 연결 안 됨';
+  const input=document.getElementById('fbUrlInput'); if(input&&!input.value)input.value=url;
+}
+function setFbUrl(){
+  const input=document.getElementById('fbUrlInput'); let url=(input.value||'').trim();
+  if(!url){localStorage.removeItem('jslamp_fb_url');updateFbStatus();alert('동기화 해제됨');return;}
+  url=url.replace(/\/?\.json\/?$/,'').replace(/\/$/,'');
+  if(!/^https:\/\/.+(firebasedatabase\.app|firebaseio\.com)$/.test(url)){
+    if(!confirm('Firebase Realtime Database URL 형식이 아닌 것 같아요.\n그래도 저장할까요?'))return;
+  }
+  localStorage.setItem('jslamp_fb_url',url); updateFbStatus(); alert('연결 저장됨!');
+}
+async function pushToCloud(silent){
+  const url=getFbUrl(); if(!url){if(!silent)alert('먼저 Firebase URL을 연결해 주세요');return;}
+  if(!silent)updateFbStatus('⏳ 올리는 중…');
+  try{
+    const res=await fetch(`${url}/jslamp.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({history,template,updatedAt:Date.now()})});
+    if(!res.ok)throw new Error(`HTTP ${res.status} - 보안 규칙을 확인하세요`);
+    const total=allRows().filter(r=>r.waybill).length;
+    updateFbStatus(`✅ 올리기 완료 · 송장 ${total}건 · ${new Date().toLocaleTimeString('ko-KR')}`);
+    if(!silent)alert(`클라우드 올리기 완료!\n송장 ${total}건 · ${history.length}일치`);
+  }catch(e){updateFbStatus(`❌ ${e.message}`);if(!silent)alert('올리기 실패: '+e.message);}
+}
+async function pullFromCloud(silent){
+  const url=getFbUrl(); if(!url){if(!silent)alert('먼저 Firebase URL을 연결해 주세요');return false;}
+  if(!silent)updateFbStatus('⏳ 받는 중…');
+  try{
+    const res=await fetch(`${url}/jslamp.json`);
+    if(!res.ok)throw new Error(`HTTP ${res.status} - URL과 보안 규칙을 확인하세요`);
+    const data=await res.json();
+    if(!data||!data.history){updateFbStatus('⚪ 클라우드에 데이터 없음');if(!silent)alert('클라우드에 데이터가 없어요.\n먼저 다른 기기에서 "📤 올리기"를 진행하세요.');return false;}
+    history=data.history; localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+    if(data.template){template=data.template;localStorage.setItem(KEY.tmpl,template);const tb=document.getElementById('tmplBox');if(tb)tb.value=template;}
+    loadHistory(); renderHome();
+    const total=allRows().filter(r=>r.waybill).length;
+    const time=data.updatedAt?new Date(data.updatedAt).toLocaleString('ko-KR'):'미상';
+    updateFbStatus(`✅ 받기 완료 · 송장 ${total}건 · ${time}`);
+    if(!silent)alert(`받기 완료!\n송장 ${total}건 · ${history.length}일치\n마지막 업데이트: ${time}`);
+    return true;
+  }catch(e){updateFbStatus(`❌ ${e.message}`);if(!silent)alert('받기 실패: '+e.message);return false;}
+}
+function saveTemplate(){template=document.getElementById('tmplBox').value;localStorage.setItem(KEY.tmpl,template);alert('메시지 양식을 저장했어요.');}
+function resetTemplate(){if(!confirm('메시지 양식을 기본값으로 되돌릴까요?'))return;template=DEFAULT_TMPL;localStorage.setItem(KEY.tmpl,template);document.getElementById('tmplBox').value=template;alert('기본 양식으로 복원했어요.');}
+
+/* ============ 화면 전환 ============ */
+function renderNav(){
+  const nav=document.getElementById('nav');
+  if(mode==='admin'){
+    nav.innerHTML=`
+      <button class="${view==='input'?'on':''}" onclick="showView('input')"><span class="ic">📥</span>송장 입력</button>
+      <button class="${view==='setup'?'on':''}" onclick="showView('setup')"><span class="ic">⚙️</span>대리점 관리</button>
+      <button onclick="lockAdmin()"><span class="ic">🔒</span>잠금/나가기</button>`;
+  }else{
+    nav.innerHTML=`
+      <button class="${view==='home'||view==='send'?'on':''}" onclick="goHome()"><span class="ic">🏠</span>담당자</button>
+      <button class="${view==='lookup'?'on':''}" onclick="showView('lookup')"><span class="ic">🔍</span>대리점 조회</button>`;
+  }
+}
+function showView(v){
+  view=v;
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
+  document.getElementById('v-'+v).classList.add('on');
+  const back=document.getElementById('backBtn');
+  back.classList.toggle('show', v==='send'||v==='lookup');
+  const sub=document.getElementById('subTitle');
+  if(v==='home')sub.textContent='장수램프 송장 발송';
+  else if(v==='send')sub.textContent=currentSp?currentSp+' 담당':'발송';
+  else if(v==='lookup')sub.textContent='대리점 송장 조회';
+  else if(v==='input')sub.textContent='관리자 · 송장 입력';
+  else if(v==='setup')sub.textContent='관리자 · 대리점 관리';
+  if(v==='home')renderHome();
+  if(v==='send')renderSendList();
+  if(v==='lookup'){
+    document.getElementById('lkResult').innerHTML='';
+    const all=allRows();const total=all.filter(r=>r.waybill).length;
+    const st=document.getElementById('lkStatus');
+    st.innerHTML=total>0
+      ?`💾 이 기기에 저장된 송장: <b>${total}건</b> · 최근 ${history.length}일치`
+      :`⚠️ 이 기기에는 저장된 송장이 없습니다. 먼저 <b>📥 송장 올리기</b>를 진행해 주세요.`;
+  }
+  if(v==='input'){const di=document.getElementById('invoiceDate');if(di&&!di.value)di.value=todayStr();renderResult();}
+  if(v==='setup'){renderDealerList();document.getElementById('tmplBox').value=template;if(typeof updateFbStatus==='function')updateFbStatus();}
+  renderNav();window.scrollTo(0,0);
+}
+function goHome(){if(mode==='admin'){/* 관리자도 홈 가능하나 모드 유지 */}showView('home');}
+function lockAdmin(){mode='user';document.getElementById('adminBadge').classList.remove('show');showView('home');}
+
+/* ============ 비밀번호 (콜백 방식) ============ */
+let pwBuf='',pwCallback=null;
+function openPwFor(cb){pwCallback=cb;pwBuf='';renderPw();document.getElementById('pwModal').classList.add('show');}
+function pwClose(){document.getElementById('pwModal').classList.remove('show');pwCallback=null;}
+function pwKey(n){if(pwBuf.length>=6)return;pwBuf+=n;renderPw();if(pwBuf.length===ADMIN_PW.length)setTimeout(checkPw,150);}
+function pwDel(){pwBuf=pwBuf.slice(0,-1);renderPw();}
+function renderPw(){document.getElementById('pwDisp').textContent='●'.repeat(pwBuf.length)+'○'.repeat(Math.max(0,4-pwBuf.length));}
+function checkPw(){
+  if(pwBuf===ADMIN_PW){const cb=pwCallback;pwClose();if(cb)cb();}
+  else{const box=document.getElementById('pwBox');box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),400);pwBuf='';renderPw();}
+}
+// 더블탭 바인딩
+function bindDoubleTap(el,cb){
+  el.addEventListener('dblclick',e=>{e.preventDefault();cb();});
+  let last=0;el.addEventListener('touchend',e=>{const t=Date.now();if(t-last<400){e.preventDefault();cb();}last=t;});
+}
+// 제목/로고 더블탭 → 관리자
+bindDoubleTap(document.getElementById('titleArea'),()=>{if(mode!=='admin')openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('input');});});
+bindDoubleTap(document.getElementById('logo'),()=>{if(mode!=='admin')openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('input');});});
+// 담당자 코드 표시
+let repUnlocked=false;
+function showReps(){repUnlocked=true;const b=document.getElementById('repOpenBtn');if(b)b.style.display='none';document.getElementById('repGridWrap').style.display='block';}
+
+/* ============ 유틸 ============ */
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+/* ============ 접속 잠금 게이트 (위장 모드) ============
+   조합: Enter → 11981 → Enter (엔터로 시작, 비번 입력, 엔터로 확인)
+   화면엔 아무것도 안 보이고 흰 배경만 뜸 */
+const ACCESS_PW='11981';
+let accStage=0;  // 0: 대기 (첫 Enter 기다림), 1: 비번 입력 중
+let accBuf='';
+let accTimer=null;
+function accReset(){accStage=0;accBuf='';if(accTimer){clearTimeout(accTimer);accTimer=null;}}
+function accCheck(){
+  if(accBuf===ACCESS_PW){
+    sessionStorage.setItem('jslamp_access_ok','1');
+    const g=document.getElementById('accessGate');
+    if(g){g.style.transition='opacity 0.3s';g.style.opacity='0';setTimeout(()=>{g.style.display='none';initApp();},300);}
+  }else{
+    accReset();
+    // 위장 유지 — 오답 메시지도 없음
+  }
+}
+function handleAccessKey(e){
+  if(sessionStorage.getItem('jslamp_access_ok')==='1')return;
+  const g=document.getElementById('accessGate');
+  if(!g||g.style.display==='none')return;
+  if(e.key==='Enter'){
+    e.preventDefault();
+    if(accStage===0){accStage=1;accBuf='';
+      // 10초 안에 완료 안 하면 리셋
+      if(accTimer)clearTimeout(accTimer);
+      accTimer=setTimeout(accReset,10000);
+    }else if(accStage===1){accCheck();}
+  }else if(accStage===1 && /^\d$/.test(e.key)){
+    e.preventDefault();
+    accBuf+=e.key;
+    // 15자리 넘으면 리셋 (안전)
+    if(accBuf.length>15)accReset();
+  }else if(e.key==='Backspace' && accStage===1){
+    e.preventDefault();
+    accBuf=accBuf.slice(0,-1);
+  }
+}
+// 모바일: input 요소에 값이 채워지고 나서 accBuf 동기화
+function handleCovertInput(){
+  const el=document.getElementById('accessCovertInput');
+  if(!el)return;
+  const v=(el.value||'').replace(/[^\d]/g,'');
+  // 모바일 자판에서 11981이 완성되는 순간 자동 확인
+  if(v.endsWith(ACCESS_PW)){
+    accBuf=ACCESS_PW; accCheck(); el.value='';
+  }else if(v.length>15){
+    el.value=''; // 너무 길면 리셋
+  }
+}
+function initAccessGate(){
+  if(sessionStorage.getItem('jslamp_access_ok')==='1'){
+    const g=document.getElementById('accessGate');
+    if(g)g.style.display='none';
+    initApp();
+    return;
+  }
+  document.addEventListener('keydown',handleAccessKey);
+  const el=document.getElementById('accessCovertInput');
+  if(el){
+    el.addEventListener('input',handleCovertInput);
+    // 자동 포커스 — 폰에서 키보드가 안 뜨면 사용자가 화면 탭하면 뜸
+    setTimeout(()=>el.focus(),50);
+    // 탭 시 다시 포커스
+    document.getElementById('accessGate').addEventListener('click',()=>el.focus());
+  }
+}
+
+/* ============ 초기화 ============ */
+function initApp(){
+  loadHistory();
+  document.getElementById('tmplBox').value=template;
+  showView('home');
+  // 클라우드 URL이 있으면 자동으로 최신 데이터 받기
+  if(getFbUrl()){
+    pullFromCloud(true).then(ok=>{if(ok)renderHome();});
+  }
+}
+initAccessGate();
+</script>
+</body>
+</html>
