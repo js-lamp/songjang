@@ -1964,15 +1964,18 @@ function importData(event){
 }
 
 /* === ☁️ Firebase Realtime Database 동기화 === */
+// 앱에 내장된 기본 Firebase URL — 사용자가 별도 설정 없이도 자동 연결됨
+const DEFAULT_FB_URL='https://jangsoo-lamp-default-rtdb.asia-southeast1.firebasedatabase.app';
 function getFbUrl(){
-  // 우선순위: ?fb= 쿼리 파라미터 → localStorage
+  // 우선순위: ?fb= 쿼리 파라미터 → localStorage → 내장 기본값
   const q=new URLSearchParams(location.search).get('fb');
   if(q){
     const decoded=decodeURIComponent(q).replace(/\/$/,'');
     if(localStorage.getItem('jslamp_fb_url')!==decoded)localStorage.setItem('jslamp_fb_url',decoded);
     return decoded;
   }
-  return (localStorage.getItem('jslamp_fb_url')||'').replace(/\/$/,'');
+  const stored=(localStorage.getItem('jslamp_fb_url')||'').replace(/\/$/,'');
+  return stored || DEFAULT_FB_URL;
 }
 function copyShareUrl(){
   const url=getFbUrl();
