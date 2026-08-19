@@ -244,10 +244,18 @@
     <input type="file" id="imgInput" accept="image/*" multiple style="display:none">
     <div id="dropZone" tabindex="0">
       <div class="dz-ic">🖼️</div>
-      <div class="dz-main">여기를 눌러 <b>사진 여러 장</b> 선택 · 촬영</div>
-      <div class="dz-sub">📱 폰: 사진첩에서 여러 장 <b>길게 눌러 선택</b> · 💻 PC: 여러 파일 <b>드래그해서 놓기</b> · 붙여넣기(Ctrl+V)도 가능</div>
+      <div class="dz-main">여기 눌러 <b>사진 추가</b></div>
+      <div class="dz-sub">📱 한 장씩 추가하면 자동 누적 · 💻 여러 개 드래그 or Ctrl+V</div>
     </div>
     <div id="thumbs"></div>
+    <div id="queueBar" style="display:none;margin-top:10px;background:#fff8e6;border:1px solid #f0c078;border-radius:10px;padding:12px">
+      <div style="font-size:13px;font-weight:700;color:#7a5a20;text-align:center;margin-bottom:10px">📋 대기 중인 사진: <span id="queueCount" style="color:#c14242;font-size:15px">0</span>장</div>
+      <button class="btn btn-amber" onclick="processQueue()" style="width:100%;margin-bottom:6px">🚀 인식 시작 (모두 처리)</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('imgInput').click()" style="flex:1">＋ 더 추가</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearQueue()" style="flex:1">✖ 비우기</button>
+      </div>
+    </div>
     <div id="ocrStatus"><div class="spin"></div><div style="flex:1"><div id="ocrText" style="font-size:12.5px;font-weight:600;margin-bottom:5px">인식 준비 중…</div><div class="bar"><span id="ocrBar"></span></div></div></div>
     <div id="ocrBlocked" style="display:none;background:var(--red-soft);border:1px solid #e8b6ab;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#9a3a28;line-height:1.55;margin-top:10px">
       ⚠️ <b>지금 화면(미리보기)에서는 자동 인식이 막혀 있어요.</b> 보안 정책 때문입니다.<br>
@@ -266,11 +274,25 @@
     <h2><span class="num">2</span> 인식 결과 확인 · 수정</h2>
     <p class="desc"></p>
     <div style="font-size:11.5px;color:var(--sub);margin:-4px 0 8px">💡 사진을 한 장씩 더 올려도 같은 날짜에 <b>자동으로 누적</b>됩니다. 아래 <b>"📸 사진 더 추가"</b> 눌러서 계속 이어가세요.</div>
+    <button class="btn btn-ghost btn-sm" id="compareBtn" style="width:100%;margin-bottom:8px;display:none" onclick="toggleCompare()">🖼 원본 사진과 대조하기</button>
+    <div id="compareWrap" style="display:none;margin-bottom:10px">
+      <div id="compareTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+      <div id="compareImgBox" style="border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:42vh;background:#faf7f0;-webkit-overflow-scrolling:touch">
+        <img id="compareImg" style="display:block;width:100%;max-width:none;height:auto;cursor:zoom-in" onclick="openImgFull()">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="zoomCompare(-1)">➖ 축소</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="zoomCompare(1)">➕ 확대</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openImgFull()">⛶ 전체화면</button>
+      </div>
+      <div style="font-size:11px;color:var(--sub);text-align:center;margin-top:6px">사진을 좌우·상하로 밀어서 보고, 아래 표와 대조하세요</div>
+    </div>
     <div class="summary" id="summary"></div>
     <div style="overflow:auto;max-height:60vh;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px"><table class="tbl" id="resultTbl"></table></div>
     <div id="skipBox" style="display:none"></div>
     <button class="btn btn-amber btn-sm" style="width:100%;margin-top:10px" onclick="document.getElementById('imgInput').click()">📸 사진 더 추가 (이 날짜에 누적)</button>
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="addRow()">＋ 행 직접 추가</button>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="reassignSalespersons()">👤 영업사원 일괄 배정 (전체 이력)</button>
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="fixExistingFees()">🔧 잘못된 택배비 일괄 보정 (전체 이력)</button>
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="removeDuplicates()">🧹 중복 송장번호 정리 (전체 이력)</button>
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;color:#c14242" onclick="clearTodayRows()">🗑 이 날짜 데이터 비우기 (다시 시작)</button>
@@ -357,6 +379,12 @@
   <p style="color:#5a4a2a;font-size:14.5px;line-height:1.7;margin:0;max-width:320px">송장번호는 담당자에게<br>요청해 주세요</p>
   <input type="text" inputmode="numeric" id="accessCovertInput" autocomplete="off" spellcheck="false"
          style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;border:none;outline:none;font-size:16px;caret-color:transparent;background:transparent">
+</div>
+
+<!-- 원본 사진 전체화면 뷰어 -->
+<div id="imgFull" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:99998;overflow:auto;-webkit-overflow-scrolling:touch">
+  <img id="imgFullSrc" style="width:100%;height:auto;display:block">
+  <button onclick="closeImgFull()" style="position:fixed;top:14px;right:14px;background:rgba(255,255,255,0.92);border:none;border-radius:50%;width:42px;height:42px;font-size:20px;cursor:pointer;font-weight:700;color:#333">✕</button>
 </div>
 
 <!-- 비밀번호 모달 -->
@@ -1307,7 +1335,9 @@ if(localStorage.getItem('jslamp_dealers_ver')!==String(DEALERS_VER) || dealers.l
     let updated=false;
     hist.forEach(h=>(h.rows||[]).forEach(r=>{
       if(r.store && !r.sp){
-        const d=dealers.find(x=>x.name===r.store);
+        let d=dealers.find(x=>x.name===r.store);
+        if(!d){const rn=normName(r.store);d=dealers.find(x=>normName(x.name)===rn);}
+        if(!d)d=findBestDealer(r.store);
         if(d&&d.sp){r.sp=d.sp;r.status='ok';updated=true;}
       }
     }));
@@ -1583,6 +1613,81 @@ function ingest(parsed){
 }
 
 /* 중복 송장 정리 — 송장번호+대리점+받는분+택배비 4개 모두 같을 때만 제거 */
+/* ===== 원본 사진 대조 (인식에 사용한 사진 보관) ===== */
+let ocrImages=[];              // [{url}] — 이번 세션에서 인식한 사진들
+let compareIdx=0, compareZoom=100;
+function renderCompare(){
+  const btn=document.getElementById('compareBtn');
+  if(!btn)return;
+  btn.style.display=ocrImages.length?'block':'none';
+  if(!ocrImages.length){document.getElementById('compareWrap').style.display='none';return;}
+  if(compareIdx>=ocrImages.length)compareIdx=0;
+  document.getElementById('compareTabs').innerHTML=ocrImages.map((im,i)=>
+    `<button class="btn btn-${i===compareIdx?'amber':'ghost'} btn-sm" style="flex:0 0 auto;padding:4px 14px" onclick="setCompareImg(${i})">사진 ${i+1}</button>`).join('');
+  const img=document.getElementById('compareImg');
+  img.src=ocrImages[compareIdx].url;
+  img.style.width=compareZoom+'%';
+}
+function toggleCompare(){
+  const w=document.getElementById('compareWrap');
+  const open=w.style.display==='none';
+  w.style.display=open?'block':'none';
+  document.getElementById('compareBtn').textContent=open?'🖼 원본 사진 닫기':'🖼 원본 사진과 대조하기';
+  if(open)renderCompare();
+}
+function setCompareImg(i){compareIdx=i;renderCompare();}
+function zoomCompare(d){compareZoom=Math.max(60,Math.min(400,compareZoom+d*30));renderCompare();}
+function openImgFull(){
+  if(!ocrImages.length)return;
+  document.getElementById('imgFullSrc').src=ocrImages[compareIdx].url;
+  document.getElementById('imgFull').style.display='block';
+}
+function closeImgFull(){document.getElementById('imgFull').style.display='none';}
+
+/* 영업사원 비어 있는 송장 행을 대리점 명단 기준으로 일괄 배정 */
+function reassignSalespersons(){
+  const empties=[]; const mismatch=[];
+  history.forEach(h=>(h.rows||[]).forEach(r=>{
+    if(!r.waybill||!r.store)return;
+    if(!r.sp){empties.push(r);return;}
+    const d=dealers.find(x=>x.name===r.store);
+    if(d&&d.sp&&d.sp!==r.sp)mismatch.push({r,to:d.sp});
+  }));
+  if(!empties.length&&!mismatch.length){alert('영업사원이 비어 있거나 명단과 다른 송장이 없습니다.');return;}
+  let fixed=0; const details=[];
+  if(empties.length){
+    if(confirm(`영업사원이 비어 있는 송장 ${empties.length}건을 대리점 명단 기준으로 자동 배정할까요?`)){
+      empties.forEach(r=>{
+        // 1차 정확 일치 → 2차 정규화 일치 → 3차 유사 매칭
+        let d=dealers.find(x=>x.name===r.store);
+        if(!d){const rn=normName(r.store);d=dealers.find(x=>normName(x.name)===rn);}
+        if(!d)d=findBestDealer(r.store);
+        if(!d){const m=matchDealer(r.store);if(m.dealer&&m.score>=0.7)d=m.dealer;}
+        if(d&&d.sp){
+          r.sp=d.sp;r.status='ok';
+          if(details.length<5)details.push(`  ${r.store} → ${d.sp}`);
+          fixed++;
+        }
+      });
+    }
+  }
+  if(mismatch.length){
+    if(confirm(`영업사원이 명단과 다르게 저장된 송장 ${mismatch.length}건이 있습니다.\n명단 기준으로 맞출까요?\n(직접 지정하신 값이 있으면 취소하세요)`)){
+      mismatch.forEach(({r,to})=>{
+        if(details.length<5)details.push(`  ${r.store} → ${to}`);
+        r.sp=to;r.status='ok';fixed++;
+      });
+    }
+  }
+  if(!fixed){alert('변경된 항목이 없습니다.\n명단에서 못 찾은 대리점은 결과 표에서 직접 지정해 주세요.');return;}
+  const cur=history.find(h=>h.date===rowsDate);
+  rows=cur?cur.rows:[];
+  localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+  if(typeof autoPush==='function')autoPush();
+  renderResult();renderHome();
+  alert(`영업사원 ${fixed}건을 배정했습니다.\n\n예시:\n${details.join('\n')}${fixed>details.length?`\n... 외 ${fixed-details.length}건`:''}`);
+}
+
 /* 전체 이력의 잘못된 택배비 일괄 보정 (OCR 오류 자동 수정) */
 function fixExistingFees(){
   if(!confirm('전체 이력에서 OCR 오류로 잘못된 택배비를 일괄 보정합니다.\n\n자동 보정 패턴:\n  • 33,850 → 3,850\n  • 66,600 → 6,600\n  • 77,700 → 7,700\n  • 55,060 → 5,060\n\n진행할까요?'))return;
@@ -1648,17 +1753,52 @@ function clearTodayRows(){
   renderResult();renderHome();
   document.getElementById('resultCard').style.display='none';
   document.getElementById('thumbs').innerHTML='';
+  ocrImages=[];compareIdx=0;
+  const cw=document.getElementById('compareWrap');if(cw)cw.style.display='none';
+  const cb=document.getElementById('compareBtn');if(cb){cb.style.display='none';cb.textContent='🖼 원본 사진과 대조하기';}
 }
 
 /* ============ OCR ============ */
 const imgInput=document.getElementById('imgInput');
 const dropZone=document.getElementById('dropZone');
 const thumbs=document.getElementById('thumbs');
+
+/* 사진 대기열 — 여러 장 쌓아두고 한꺼번에 처리 */
+let pendingFiles=[];
+function addToQueue(files){
+  const imgs=[...files].filter(f=>f&&f.type&&f.type.startsWith('image/'));
+  if(!imgs.length){alert('이미지 파일이 아니에요.');return;}
+  pendingFiles.push(...imgs);
+  renderQueue();
+}
+function renderQueue(){
+  thumbs.innerHTML='';
+  pendingFiles.forEach((f,i)=>{
+    const u=URL.createObjectURL(f);
+    const d=document.createElement('div');
+    d.className='th';
+    d.innerHTML=`<img src="${u}"><b>${i+1}</b><span onclick="removeFromQueue(${i})" style="position:absolute;top:-2px;right:-2px;background:#c14242;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;text-align:center;line-height:18px;cursor:pointer;font-weight:700">×</span>`;
+    thumbs.appendChild(d);
+  });
+  const bar=document.getElementById('queueBar');
+  if(pendingFiles.length>0){bar.style.display='block';document.getElementById('queueCount').textContent=pendingFiles.length;}
+  else{bar.style.display='none';}
+}
+function removeFromQueue(i){pendingFiles.splice(i,1);renderQueue();}
+function clearQueue(){pendingFiles=[];renderQueue();}
+async function processQueue(){
+  if(!pendingFiles.length){alert('대기 중인 사진이 없어요.');return;}
+  const files=pendingFiles.slice();
+  pendingFiles=[];renderQueue();
+  await runOCR(files);
+}
+
 function showThumbs(files){thumbs.innerHTML='';files.forEach((f,i)=>{const u=URL.createObjectURL(f);const d=document.createElement('div');d.className='th';d.innerHTML=`<img src="${u}"><b>${i+1}</b>`;thumbs.appendChild(d);});}
 async function runOCR(files){
   files=[...files].filter(f=>f&&f.type&&f.type.startsWith('image/'));
   if(!files.length){alert('이미지 파일이 아니에요.');return;}
   showThumbs(files);
+  files.forEach(f=>ocrImages.push({url:URL.createObjectURL(f)}));
   const st=document.getElementById('ocrStatus'),bar=document.getElementById('ocrBar'),txt=document.getElementById('ocrText');
   st.classList.add('show');let worker;
   try{
@@ -1692,13 +1832,13 @@ async function runOCR(files){
 function showOcrBlocked(){
   const box=document.getElementById('ocrBlocked');if(box)box.style.display='block';
 }
-imgInput.addEventListener('change',e=>{const f=[...e.target.files];imgInput.value='';if(f.length)runOCR(f);});
+imgInput.addEventListener('change',e=>{const f=[...e.target.files];imgInput.value='';if(f.length)addToQueue(f);});
 dropZone.addEventListener('click',()=>imgInput.click());
 dropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();imgInput.click();}});
 ['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.classList.add('drag');}));
 ['dragleave','dragend'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('drag');}));
-dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('drag');const f=[...(e.dataTransfer.files||[])];if(f.length)runOCR(f);});
-window.addEventListener('paste',e=>{if(view!=='input')return;const items=(e.clipboardData||{}).items||[];const imgs=[];for(const it of items){if(it.kind==='file'&&it.type.startsWith('image/')){const f=it.getAsFile();if(f)imgs.push(f);}}if(imgs.length){e.preventDefault();runOCR(imgs);}});
+dropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('drag');const f=[...(e.dataTransfer.files||[])];if(f.length)addToQueue(f);});
+window.addEventListener('paste',e=>{if(view!=='input')return;const items=(e.clipboardData||{}).items||[];const imgs=[];for(const it of items){if(it.kind==='file'&&it.type.startsWith('image/')){const f=it.getAsFile();if(f)imgs.push(f);}}if(imgs.length){e.preventDefault();addToQueue(imgs);}});
 function parsePasted(){const t=document.getElementById('pasteBox').value;const p=parseText(t);if(!p.length){alert('송장번호가 포함된 줄을 찾지 못했어요.');return;}ingest(p);document.getElementById('pasteBox').value='';}
 
 /* ============ 결과 표(관리자) ============ */
@@ -1726,6 +1866,7 @@ function renderResult(skipped){
       <td>${pill}</td><td><button class="delx" onclick="delRow(${i})">×</button></td></tr>`;
   });
   tbl.innerHTML=html+`</tbody>`;
+  if(typeof renderCompare==='function')renderCompare();
   const ok=rows.filter(r=>r.status==='ok').length, warn=rows.filter(r=>r.status!=='ok').length;
   const feeWarnCnt=rows.filter(r=>r.feeWarn).length;
   const feeSum=rows.reduce((a,r)=>a+(r.fee||0),0);
