@@ -376,9 +376,22 @@
 <div id="accessGate" style="position:fixed;inset:0;background:#f5f2ec;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Pretendard',sans-serif">
   <div style="font-size:48px;margin-bottom:24px;opacity:0.6">📮</div>
   <h2 style="margin:0 0 14px;font-size:20px;color:#3d2f15;font-weight:700;line-height:1.4">운영 종료</h2>
-  <p style="color:#5a4a2a;font-size:14.5px;line-height:1.7;margin:0;max-width:320px">송장번호는 담당자에게<br>요청해 주세요</p>
+  <p style="color:#5a4a2a;font-size:14.5px;line-height:1.7;margin:0 0 28px;max-width:320px">송장번호는 담당자에게<br>요청해 주세요</p>
+  <div style="position:relative;z-index:2;border-top:1px solid #ddd4c2;padding-top:24px;max-width:340px;width:100%">
+    <div style="font-size:14px;font-weight:700;color:#3d2f15;margin-bottom:8px">📦 대신택배 배송 조회</div>
+    <p style="color:#6b5a3a;font-size:13px;line-height:1.7;margin:0 0 16px">송장번호를 모르셔도 <b>고객번호</b>로<br>배송 상태를 직접 확인하실 수 있습니다.</p>
+    <a href="https://www.ds3211.co.kr/freight/GuestSearch.jsp" target="_blank" rel="noopener"
+       style="display:inline-block;background:#e09040;color:white;padding:12px 26px;border-radius:9px;text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 2px 8px rgba(224,144,64,0.28)">고객번호로 조회하기</a>
+    <div style="text-align:left;background:#fffdf8;border:1px solid #e8dcc4;border-radius:9px;padding:12px 14px;margin-top:16px;font-size:12.5px;line-height:1.9;color:#5a4a2a">
+      <b style="color:#3d2f15">조회 방법</b><br>
+      ① 개인정보 수집 <b>"동의"</b> 선택<br>
+      ② 구분에서 <b>받는 분</b> 선택<br>
+      ③ 전화번호 입력 <span style="color:#8a7a55">(- 없이 숫자만)</span><br>
+      ④ 조회기간 입력 후 <b>검색</b>
+    </div>
+  </div>
   <input type="text" inputmode="numeric" id="accessCovertInput" autocomplete="off" spellcheck="false"
-         style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;border:none;outline:none;font-size:16px;caret-color:transparent;background:transparent">
+         style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;border:none;outline:none;font-size:16px;caret-color:transparent;background:transparent;z-index:1">
 </div>
 
 <!-- 원본 사진 전체화면 뷰어 -->
@@ -2316,7 +2329,7 @@ function initAccessGate(){
     // 자동 포커스 — 폰에서 키보드가 안 뜨면 사용자가 화면 탭하면 뜸
     setTimeout(()=>el.focus(),50);
     // 탭 시 다시 포커스
-    document.getElementById('accessGate').addEventListener('click',()=>el.focus());
+    document.getElementById('accessGate').addEventListener('click',e=>{if(e.target.closest('a'))return;el.focus();});
   }
 }
 
