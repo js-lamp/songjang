@@ -306,7 +306,7 @@
 <section id="v-all">
   <div class="card">
     <h2>📋 전체 리스트</h2>
-    <p class="desc">사진에 올린 순서 그대로 줄별로 정리됩니다. 복사하거나 카톡으로 그대로 보낼 수 있어요.</p>
+    <p class="desc">사진에 올린 순서 그대로 정리됩니다. <b>칸을 눌러 바로 수정</b>할 수 있고, 복사하거나 카톡으로 보낼 수 있어요.</p>
     <div id="allDates" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
     <div class="row" style="margin-bottom:10px">
       <button class="btn btn-amber btn-sm" style="flex:2" onclick="shareAllList()">📤 카톡으로 보내기</button>
@@ -1380,7 +1380,13 @@ let rows = [];          // [{store, waybill, fee, phone, recipient, sp, score, s
 let rowsDate = '';
 let history = load('jslamp_inv_hist',[]);  // [{date, rows}] 최대5일
 let currentSp = null;
-let mode = 'user';      // 'user' | 'admin'
+let mode = sessionStorage.getItem('jslamp_admin_ok')==='1' ? 'admin' : 'user';  // 'user' | 'admin'
+// 관리자 해제는 이 브라우저 세션 동안 유지 — 앱(탭)을 완전히 닫으면 다시 비번을 받는다
+function setAdmin(){
+  mode='admin';
+  sessionStorage.setItem('jslamp_admin_ok','1');
+  const b=document.getElementById('adminBadge'); if(b)b.classList.add('show');
+}
 let view = 'home';
 let sentSet = new Set();
 
@@ -1594,10 +1600,12 @@ function findBestDealer(text){
     if(pos>=0) matches.push({d,pos,len:dn.length});
   });
   if(matches.length){
-    matches.sort((a,b)=>b.pos-a.pos||b.len-a.len);
+    // 끝나는 위치가 뒤쪽인 것 우선(=5열 대리점명 위치), 끝이 같으면 더 긴 이름 우선
+    // (비케이라이팅 안에 케이라이팅이 들어 있는 경우 긴 쪽을 고르기 위함)
+    matches.sort((a,b)=>(b.pos+b.len)-(a.pos+a.len)||b.len-a.len);
     let pick=matches[0];
     if(pick.len<=3){
-      // 짧은 매치가 1등이면, 근처(15자 이내) 또는 텍스트 어디든 더 긴 매치가 있으면 그쪽으로
+      // 짧은 매치가 1등이면, 텍스트 어디든 더 긴 매치가 있으면 그쪽으로
       for(const m of matches){if(m.len>pick.len){pick=m;break;}}
     }
     return pick.d;
@@ -1656,18 +1664,19 @@ function ingest(parsed){
 /* ===== 📋 전체 리스트 (관리자 전용) ===== */
 let allListDate='';
 function goAllList(){
-  const open=()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');allListDate=rowsDate||todayStr();showView('all');};
+  const open=()=>{setAdmin();allListDate=rowsDate||todayStr();showView('all');};
   if(mode==='admin')open(); else openPwFor(open);
 }
 function allListRows(){
   const h=history.find(x=>x.date===allListDate);
   return h?(h.rows||[]).filter(r=>r.waybill):[];
 }
+let allListCache=[];
 function renderAllList(){
   // 날짜 선택 버튼
   const dz=document.getElementById('allDates');
   if(!history.length){
-    dz.innerHTML='';
+    dz.innerHTML='';allListCache=[];
     document.getElementById('allSummary').textContent='';
     document.getElementById('allList').innerHTML='<div class="empty"><div class="big">📭</div>저장된 송장이 없습니다.</div>';
     return;
@@ -1679,23 +1688,61 @@ function renderAllList(){
     return `<button class="btn btn-${on?'amber':'ghost'} btn-sm" style="flex:0 0 auto;padding:5px 12px" onclick="setAllListDate('${esc(h.date)}')">${fmtDate(h.date)} <span style="opacity:.75">${n}건</span></button>`;
   }).join('');
   const list=allListRows();
+  allListCache=list;
   const feeTot=list.reduce((a,r)=>a+(r.fee||0),0);
   document.getElementById('allSummary').innerHTML=`${fmtDate(allListDate)} · 총 <b>${list.length}건</b> · 택배비 합계 <b>${feeTot.toLocaleString('ko-KR')}원</b>`;
   const box=document.getElementById('allList');
   if(!list.length){box.innerHTML='<div class="empty"><div class="big">📭</div>이 날짜에는 송장이 없습니다.</div>';return;}
-  box.innerHTML=list.map((r,i)=>`
-    <div style="display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid #f0e8d8">
-      <span style="flex:0 0 22px;color:var(--sub);font-size:11.5px;padding-top:2px">${i+1}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:#3d2f15">${esc(r.store||'')}${r.sp?`<span style="font-weight:400;font-size:11px;color:var(--sub);margin-left:6px">${esc(r.sp)}</span>`:''}</div>
-        <div style="font-size:12px;font-family:ui-monospace,monospace;color:#5a4a2a;margin-top:2px">${esc(r.waybill)}</div>
-        <div style="font-size:11.5px;color:var(--sub);margin-top:2px">${esc(r.recipient||'-')}${r.phone?' · '+esc(r.phone):''}</div>
+  box.innerHTML=list.map((r,i)=>{
+    const feeBg=r.feeWarn?'background:#fff3e0;border-color:#f3a847;':'';
+    return `
+    <div style="padding:10px 11px;border-bottom:1px solid #f0e8d8">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+        <span style="flex:0 0 20px;color:var(--sub);font-size:11.5px">${i+1}</span>
+        <input value="${esc(r.store||'')}" onchange="editAllRow(${i},'store',this.value)" placeholder="대리점명" style="flex:1;min-width:0;font-size:13px;font-weight:700">
+        <select onchange="editAllRow(${i},'sp',this.value)" style="flex:0 0 90px;font-size:11.5px">${spSelectOptions(r.sp)}</select>
       </div>
-      <div style="flex:0 0 auto;text-align:right">
-        <div style="font-size:13px;font-weight:700;color:var(--amber-d)">${fmtFee(r.fee)}</div>
-        <button class="btn btn-ghost btn-sm" style="padding:3px 9px;font-size:11px;margin-top:4px" onclick="copyOneLine(${i})">복사</button>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;padding-left:26px">
+        <input value="${esc(r.waybill||'')}" onchange="editAllRow(${i},'waybill',this.value)" style="flex:1;min-width:0;font-family:ui-monospace,monospace;font-size:12px">
+        <input value="${r.fee==null?'':r.fee}" onchange="editAllRow(${i},'fee',this.value)" inputmode="numeric" style="flex:0 0 76px;text-align:right;font-size:12px;${feeBg}">
       </div>
-    </div>`).join('');
+      <div style="display:flex;gap:6px;align-items:center;padding-left:26px">
+        <input value="${esc(r.recipient||'')}" onchange="editAllRow(${i},'recipient',this.value)" placeholder="받는분" style="flex:1;min-width:0;font-size:12px">
+        <button class="btn btn-ghost btn-sm" style="flex:0 0 auto;padding:4px 10px;font-size:11px" onclick="copyOneLine(${i})">복사</button>
+        <button class="delx" onclick="delAllRow(${i})">×</button>
+      </div>
+    </div>`;}).join('');
+}
+/* 전체 리스트에서 직접 수정 */
+function persistAllList(){
+  localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
+  if(typeof autoPush==='function')autoPush();
+  const cur=history.find(h=>h.date===rowsDate); if(cur)rows=cur.rows;
+  renderHome();
+}
+function editAllRow(i,f,v){
+  const r=allListCache[i]; if(!r)return;
+  if(f==='fee'){
+    const n=parseInt(String(v).replace(/[^\d]/g,''),10);
+    r.fee=isNaN(n)?null:n; r.feeWarn=!isReasonableFee(r.fee);
+  }else if(f==='store'){
+    r.store=v;
+    const {dealer,score}=matchDealer(v);
+    if(dealer&&score>=0.8){r.sp=dealer.sp;r.status='ok';}
+    else if(dealer&&score>=0.55){r.status='mid';}
+    else{r.status='warn';}
+  }else if(f==='sp'){
+    r.sp=v; r.status=v?'ok':'warn';
+  }else r[f]=v;
+  persistAllList();
+  if(f==='store'||f==='sp'||f==='fee')renderAllList();
+}
+function delAllRow(i){
+  const r=allListCache[i]; if(!r)return;
+  if(!confirm(`이 송장을 삭제할까요?\n${r.store||''} / ${r.waybill}`))return;
+  const h=history.find(x=>x.date===allListDate); if(!h)return;
+  const idx=(h.rows||[]).indexOf(r); if(idx>=0)h.rows.splice(idx,1);
+  persistAllList(); renderAllList();
 }
 function setAllListDate(d){allListDate=d;renderAllList();}
 function lineText(r,i){
@@ -1708,7 +1755,7 @@ function buildAllListText(){
   return head+'\n\n'+list.map((r,i)=>lineText(r,i)).join('\n');
 }
 function copyOneLine(i){
-  const list=allListRows(); const r=list[i]; if(!r)return;
+  const r=allListCache[i]; if(!r)return;
   const t=lineText(r,i);
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(showToast).catch(()=>fb(t,showToast));
   else fb(t,showToast);
@@ -1975,9 +2022,9 @@ function renderResult(skipped){
     const feeBg=r.feeWarn?'background:#fff3e0;border:1px solid #f3a847':'';
     const feeIcon=r.feeWarn?'<span title="기본 금액(3,850/5,060/6,600/7,700) 또는 그 배수가 아님" style="color:#c14242;margin-right:3px">⚠</span>':'';
     html+=`<tr>
-      <td><input value="${esc(r.store)}" oninput="editRow(${i},'store',this.value)" style="min-width:84px"></td>
-      <td><input class="wb" value="${esc(r.waybill)}" oninput="editRow(${i},'waybill',this.value)" style="min-width:158px;font-family:ui-monospace,monospace;letter-spacing:-0.3px"></td>
-      <td style="white-space:nowrap">${feeIcon}<input class="wb" value="${r.fee==null?'':r.fee}" oninput="editRow(${i},'fee',this.value)" style="min-width:60px;text-align:right;${feeBg}" inputmode="numeric"></td>
+      <td><input value="${esc(r.store)}" onchange="editRow(${i},'store',this.value)" style="min-width:84px"></td>
+      <td><input class="wb" value="${esc(r.waybill)}" onchange="editRow(${i},'waybill',this.value)" style="min-width:158px;font-family:ui-monospace,monospace;letter-spacing:-0.3px"></td>
+      <td style="white-space:nowrap">${feeIcon}<input class="wb" value="${r.fee==null?'':r.fee}" onchange="editRow(${i},'fee',this.value)" style="min-width:60px;text-align:right;${feeBg}" inputmode="numeric"></td>
       <td><select onchange="editRow(${i},'sp',this.value)" style="min-width:76px">${spSelectOptions(r.sp)}</select></td>
       <td>${pill}</td><td><button class="delx" onclick="delRow(${i})">×</button></td></tr>`;
   });
@@ -2033,8 +2080,8 @@ function renderHome(){
   document.getElementById('basisHome').textContent=rowsDate?`${fmtDate(rowsDate)} 기준 · ${rows.filter(r=>r.waybill).length}건`:'';
 }
 function selectRep(s){currentSp=s;showView('send');}
-function goUpload(){if(mode==='admin')showView('input');else openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('input');});}
-function goSetup(){if(mode==='admin')showView('setup');else openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('setup');});}
+function goUpload(){if(mode==='admin')showView('input');else openPwFor(()=>{setAdmin();showView('input');});}
+function goSetup(){if(mode==='admin')showView('setup');else openPwFor(()=>{setAdmin();showView('setup');});}
 
 /* ============ 발송 ============ */
 function buildMsg(store,items){
@@ -2341,7 +2388,14 @@ function showView(v){
   renderNav();window.scrollTo(0,0);
 }
 function goHome(){if(mode==='admin'){/* 관리자도 홈 가능하나 모드 유지 */}showView('home');}
-function lockAdmin(){mode='user';document.getElementById('adminBadge').classList.remove('show');showView('home');}
+function lockAdmin(){
+  mode='user';
+  sessionStorage.removeItem('jslamp_admin_ok');
+  sessionStorage.removeItem('jslamp_rep_ok');
+  repUnlocked=false;
+  const b=document.getElementById('adminBadge'); if(b)b.classList.remove('show');
+  showView('home');
+}
 
 /* ============ 비밀번호 (콜백 방식) ============ */
 let pwBuf='',pwCallback=null;
@@ -2360,11 +2414,16 @@ function bindDoubleTap(el,cb){
   let last=0;el.addEventListener('touchend',e=>{const t=Date.now();if(t-last<400){e.preventDefault();cb();}last=t;});
 }
 // 제목/로고 더블탭 → 관리자
-bindDoubleTap(document.getElementById('titleArea'),()=>{if(mode!=='admin')openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('input');});});
-bindDoubleTap(document.getElementById('logo'),()=>{if(mode!=='admin')openPwFor(()=>{mode='admin';document.getElementById('adminBadge').classList.add('show');showView('input');});});
+bindDoubleTap(document.getElementById('titleArea'),()=>{if(mode!=='admin')openPwFor(()=>{setAdmin();showView('input');});});
+bindDoubleTap(document.getElementById('logo'),()=>{if(mode!=='admin')openPwFor(()=>{setAdmin();showView('input');});});
 // 담당자 코드 표시
-let repUnlocked=false;
-function showReps(){repUnlocked=true;const b=document.getElementById('repOpenBtn');if(b)b.style.display='none';document.getElementById('repGridWrap').style.display='block';}
+let repUnlocked = sessionStorage.getItem('jslamp_rep_ok')==='1';
+function showReps(){
+  repUnlocked=true;
+  sessionStorage.setItem('jslamp_rep_ok','1');
+  const b=document.getElementById('repOpenBtn'); if(b)b.style.display='none';
+  const g=document.getElementById('repGridWrap'); if(g)g.style.display='block';
+}
 
 /* ============ 유틸 ============ */
 function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -2443,6 +2502,9 @@ function initAccessGate(){
 function initApp(){
   loadHistory();
   document.getElementById('tmplBox').value=template;
+  // 같은 세션에서 이미 해제해 둔 상태 복원 (뒤로가기·새로고침 시 비번 재입력 방지)
+  if(mode==='admin'){const b=document.getElementById('adminBadge'); if(b)b.classList.add('show');}
+  if(repUnlocked)showReps();
   showView('home');
   // 클라우드 URL이 있으면 자동으로 최신 데이터 받기
   if(getFbUrl()){
