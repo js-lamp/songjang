@@ -1769,11 +1769,12 @@ function copyAllList(){
 async function shareAllList(){
   const list=allListRows(); if(!list.length){alert('보낼 내역이 없습니다.');return;}
   const t=buildAllListText();
+  await copyToClipboard(t);          // 먼저 복사해 두고
   if(navigator.share){
     try{ await navigator.share({text:t}); showToast(); return; }
-    catch(e){ if(e.name==='AbortError')return; }
+    catch(e){ if(e.name==='AbortError'){showToast();return;} }
   }
-  copyAllList();
+  showToast();
 }
 
 /* ===== 원본 사진 대조 (인식에 사용한 사진 보관) ===== */
@@ -2123,20 +2124,30 @@ function renderSendList(){
       <div class="acts"><button class="btn btn-amber btn-sm" style="flex:2" onclick="copyMsg(${idx})">${navigator.share?'📤 카톡으로 보내기':'📋 메시지 복사'}</button>
       ${dn?'':`<button class="btn btn-ghost btn-sm" style="flex:1" onclick="toggleDone('${esc(id)}')">완료 표시</button>`}</div></div>`;
   });
-  html+=`<p class="hint" style="text-align:center;margin:6px 4px 20px">${navigator.share?'📤 누르면 공유 창이 열리고 → 카카오톡 → 받는 사람 선택 순서로 보낼 수 있어요.':'📋 복사 → 카카오톡에서 해당 대리점 채팅방에 붙여넣기 하세요.'}</p>`;
+  html+=`<p class="hint" style="text-align:center;margin:6px 4px 20px">${navigator.share?'📤 누르는 즉시 메시지가 복사됩니다. 공유 창에서 카카오톡을 고르거나, 카톡 대화방에 바로 붙여넣기 하세요.':'📋 복사 → 카카오톡에서 해당 대리점 채팅방에 붙여넣기 하세요.'}</p>`;
   wrap.innerHTML=html;
+}
+/* 클립보드 복사 (공유와 무관하게 항상 먼저 실행) */
+function copyToClipboard(text){
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(text).catch(()=>fb(text));
+    }
+  }catch(e){}
+  fb(text);
+  return Promise.resolve();
 }
 async function copyMsg(idx){
   const it=sendItems[idx]; if(!it) return;
   const done=()=>{showToast(); sentSet.add(it.id); renderSendList();};
-  // 모바일이면 공유 시트 → 카톡 선택 → 대화방 선택 → 전송
+  // ① 먼저 클립보드에 복사해 둔다 — 공유 시트에서 카톡이 텍스트를 못 받아도 붙여넣기 가능
+  await copyToClipboard(it.msg);
+  // ② 공유 시트 → 카톡 선택 → 대화방 선택 → 전송
   if(navigator.share){
     try{ await navigator.share({text: it.msg}); done(); return; }
-    catch(e){ if(e.name==='AbortError') return; /* 외 에러는 복사로 폴백 */ }
+    catch(e){ if(e.name==='AbortError'){ done(); return; } }
   }
-  // 데스크탑·미지원 환경: 클립보드 복사
-  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(it.msg).then(done).catch(()=>fb(it.msg,done));
-  else fb(it.msg,done);
+  done();
 }
 function fb(msg,cb){const ta=document.createElement('textarea');ta.value=msg;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta);cb&&cb();}
 function toggleDone(id){if(sentSet.has(id))sentSet.delete(id);else sentSet.add(id);renderSendList();}
