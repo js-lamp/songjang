@@ -1378,7 +1378,8 @@ let template = localStorage.getItem(KEY.tmpl) || DEFAULT_TMPL;
 if(template && !template.includes('[내역]')){template=DEFAULT_TMPL;localStorage.setItem(KEY.tmpl,template);}
 let rows = [];          // [{store, waybill, fee, phone, recipient, sp, score, status}]
 let rowsDate = '';
-let history = load('jslamp_inv_hist',[]);  // [{date, rows}] 최대5일
+const HIST_DAYS=10;  // 저장 기간(날짜 수)
+let history = load('jslamp_inv_hist',[]);  // [{date, rows}] 최대 HIST_DAYS일
 let currentSp = null;
 let mode = sessionStorage.getItem('jslamp_admin_ok')==='1' ? 'admin' : 'user';  // 'user' | 'admin'
 // 관리자 해제는 이 브라우저 세션 동안 유지 — 앱(탭)을 완전히 닫으면 다시 비번을 받는다
@@ -1398,7 +1399,7 @@ function saveHistory(){
   const idx=history.findIndex(h=>h.date===rowsDate);
   if(idx>=0)history[idx].rows=rows;else history.push({date:rowsDate,rows});
   history.sort((a,b)=>b.date.localeCompare(a.date));
-  if(history.length>5)history=history.slice(0,5);
+  if(history.length>HIST_DAYS)history=history.slice(0,HIST_DAYS);
   localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
   if(typeof autoPush==='function')autoPush();  // 클라우드 URL 설정돼 있으면 자동 업로드(2초 디바운스)
 }
@@ -2064,12 +2065,12 @@ function renderHome(){
   // 날짜 선택 (우측, 날짜+건수 가로 배치)
   const dp=document.getElementById('datePills');
   if(history.length){
-    dp.innerHTML='<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap">'+
+    dp.innerHTML='<div style="display:flex;align-items:center;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;white-space:nowrap">'+
       '<span style="font-size:11.5px;font-weight:700;color:var(--sub)">📅</span>'+
       history.map(h=>{
         const sel=h.date===rowsDate;
         const rc=(h.rows||[]).filter(r=>r.waybill).length;
-        return `<div class="sp-chip${sel?' on':''}" style="min-width:auto;padding:7px 12px;display:inline-flex;align-items:center;gap:6px" onclick="selectHistDate('${h.date}')"><b style="font-size:13.5px">${fmtDate(h.date)}</b><span style="font-size:11.5px;color:${sel?'var(--amber-d)':'var(--sub)'};font-weight:600">${rc}건</span></div>`;
+        return `<div class="sp-chip${sel?' on':''}" style="min-width:auto;flex:0 0 auto;padding:7px 12px;display:inline-flex;align-items:center;gap:6px" onclick="selectHistDate('${h.date}')"><b style="font-size:13.5px">${fmtDate(h.date)}</b><span style="font-size:11.5px;color:${sel?'var(--amber-d)':'var(--sub)'};font-weight:600">${rc}건</span></div>`;
       }).join('')+'</div>';
   }else dp.innerHTML='';
   // 담당자 그리드 (4열×2줄, 마지막 빈칸)
@@ -2154,6 +2155,36 @@ function toggleDone(id){if(sentSet.has(id))sentSet.delete(id);else sentSet.add(i
 let toastT;function showToast(){const t=document.getElementById('toast');t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1400);}
 
 /* ============ 대리점 조회 ============ */
+/* 조회 결과 — 날짜별 선택 */
+let lkState=null, lkDate='all';
+function setLkDate(d){lkDate=d;renderLookupResult();}
+function renderLookupResult(){
+  const out=document.getElementById('lkResult');
+  if(!lkState){out.innerHTML='';return;}
+  const {dealer,items,total}=lkState;
+  // 이 대리점 송장이 있는 날짜만 (최신순)
+  const dates=[...new Set(items.map(r=>r._date))].sort((a,b)=>b.localeCompare(a));
+  if(lkDate!=='all'&&!dates.includes(lkDate))lkDate='all';
+  const shown=lkDate==='all'?items:items.filter(r=>r._date===lkDate);
+  const feeTot=shown.reduce((a,r)=>a+(r.fee||0),0);
+  const period=lkDate==='all'?`최근 ${HIST_DAYS}일`:fmtDate(lkDate);
+  let html=`<div class="lk-head"><div class="nm">${esc(dealer.name)}</div><div class="sub">담당 ${esc(dealer.sp||'-')} · 코드 ${esc(String(dealer.code))} · ${period} · 송장 ${shown.length}건 · 택배비 합계 ${feeTot.toLocaleString('ko-KR')}원</div></div>`;
+  if(dates.length){
+    const pill=(d,label,n)=>{const on=lkDate===d;return `<button class="btn btn-${on?'amber':'ghost'} btn-sm" style="flex:0 0 auto;padding:6px 12px;white-space:nowrap" onclick="setLkDate('${d}')">${label} <span style="opacity:.75">${n}건</span></button>`;};
+    html+=`<div style="display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0 8px;margin-bottom:4px">`+
+      pill('all','전체',items.length)+
+      dates.map(d=>pill(d,fmtDate(d),items.filter(r=>r._date===d).length)).join('')+`</div>`;
+  }
+  if(!items.length){
+    if(total===0){
+      html+=`<div class="empty"><div class="big">📭</div>이 기기에 저장된 송장이 <b>0건</b>입니다.<br><span style="font-size:12px;color:var(--sub)">📥 송장 올리기로 먼저 데이터를 등록해 주세요</span></div>`;
+    }else{
+      html+=`<div class="empty"><div class="big">📭</div>이 대리점은 최근 ${HIST_DAYS}일간 송장 내역이 없습니다.</div>`;
+    }
+  }
+  else shown.forEach(r=>{html+=`<div class="lk-item"><div><span class="wb">${esc(r.waybill)}</span>${r.recipient?'<span style="font-size:12px;color:var(--sub);margin-left:8px">'+esc(r.recipient)+'</span>':''}</div><div style="text-align:right"><span class="fee">${fmtFee(r.fee)}</span><div style="font-size:10px;color:var(--sub)">${fmtDate(r._date||'')}</div></div></div>`;});
+  out.innerHTML=html;
+}
 function doLookup(){
   const name=document.getElementById('lkName').value.trim();
   const code=document.getElementById('lkCode').value.replace(/[^\d]/g,'').trim();
@@ -2177,7 +2208,7 @@ function doLookup(){
     return;
   }
   const targetName=dealer.name;
-  // 송장 데이터에서 해당 대리점 행 찾기 — 5일 이력 전체
+  // 송장 데이터에서 해당 대리점 행 찾기 — 저장된 이력 전체
   const all=allRows();
   const items=all.filter(r=>{
     if(!r.waybill)return false;
@@ -2185,19 +2216,9 @@ function doLookup(){
     if(simN(r.store,targetName)>=0.75 || prefixMatch(r.store,targetName))return true;
     return false;
   });
-  const feeTot=items.reduce((a,r)=>a+(r.fee||0),0);
-  let html=`<div class="lk-head"><div class="nm">${esc(targetName)}</div><div class="sub">담당 ${esc(dealer.sp||'-')} · 코드 ${esc(String(dealer.code))} · 송장 ${items.length}건 · 택배비 합계 ${feeTot.toLocaleString('ko-KR')}원 · 최근 5일 이력</div></div>`;
-  if(!items.length){
-    const total=all.filter(r=>r.waybill).length;
-    const days=history.length;
-    if(total===0){
-      html+=`<div class="empty"><div class="big">📭</div>이 기기에 저장된 송장이 <b>0건</b>입니다.<br><span style="font-size:12px;color:var(--sub)">📥 송장 올리기로 먼저 데이터를 등록해 주세요</span></div>`;
-    }else{
-      html+=`<div class="empty"><div class="big">📭</div>이 대리점은 최근 5일간 송장 내역이 없습니다.<br><span style="font-size:11.5px;color:var(--sub)">(이 기기에 저장된 전체 송장: ${total}건 · ${days}일치)</span></div>`;
-    }
-  }
-  else items.forEach(r=>{html+=`<div class="lk-item"><div><span class="wb">${esc(r.waybill)}</span>${r.recipient?'<span style="font-size:12px;color:var(--sub);margin-left:8px">'+esc(r.recipient)+'</span>':''}</div><div style="text-align:right"><span class="fee">${fmtFee(r.fee)}</span><div style="font-size:10px;color:var(--sub)">${fmtDate(r._date||'')}</div></div></div>`;});
-  out.innerHTML=html;
+  lkState={dealer,items,total:all.filter(r=>r.waybill).length};
+  lkDate='all';
+  renderLookupResult();
 }
 
 /* ============ 대리점 관리 ============ */
@@ -2264,7 +2285,7 @@ function importData(event){
           });
         }else{history=data.history;}
         history.sort((a,b)=>b.date.localeCompare(a.date));
-        if(history.length>5)history=history.slice(0,5);
+        if(history.length>HIST_DAYS)history=history.slice(0,HIST_DAYS);
         localStorage.setItem('jslamp_inv_hist',JSON.stringify(history));
       }
       if(data.template){template=data.template;localStorage.setItem(KEY.tmpl,template);const tb=document.getElementById('tmplBox');if(tb)tb.value=template;}
