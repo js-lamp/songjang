@@ -2478,23 +2478,30 @@ function accCheck(){
     // 위장 유지 — 오답 메시지도 없음
   }
 }
+// 눌린 키의 숫자 (한글 입력기 켜짐·숫자패드도 인식)
+function accDigit(e){
+  if(/^\d$/.test(e.key))return e.key;
+  const m=/^(?:Digit|Numpad)(\d)$/.exec(e.code||'');
+  return m?m[1]:null;
+}
 function handleAccessKey(e){
   if(sessionStorage.getItem('jslamp_access_ok')==='1')return;
   const g=document.getElementById('accessGate');
   if(!g||g.style.display==='none')return;
+  // 숫자를 치기 시작하면 10초 안에 끝내야 함 (아니면 자동 리셋)
+  const armTimer=()=>{if(accTimer)clearTimeout(accTimer);accTimer=setTimeout(accReset,10000);};
   if(e.key==='Enter'){
     e.preventDefault();
-    if(accStage===0){accStage=1;accBuf='';
-      // 10초 안에 완료 안 하면 리셋
-      if(accTimer)clearTimeout(accTimer);
-      accTimer=setTimeout(accReset,10000);
-    }else if(accStage===1){accCheck();}
-  }else if(accStage===1 && /^\d$/.test(e.key)){
+    if(ACCESS_PWS.includes(accBuf)){accCheck();return;}
+    accBuf='';accStage=1;armTimer();          // 엔터 = 입력 시작(또는 다시 시작)
+  }else if(accDigit(e)!==null){
     e.preventDefault();
-    accBuf+=e.key;
-    // 15자리 넘으면 리셋 (안전)
-    if(accBuf.length>15)accReset();
-  }else if(e.key==='Backspace' && accStage===1){
+    accStage=1;armTimer();
+    accBuf=(accBuf+accDigit(e)).slice(-15);
+    // 비번 자릿수만 다 누르면 바로 열림 (엔터 불필요)
+    const hit=ACCESS_PWS.find(pw=>accBuf.endsWith(pw));
+    if(hit){accBuf=hit;accCheck();}
+  }else if(e.key==='Backspace'){
     e.preventDefault();
     accBuf=accBuf.slice(0,-1);
   }
@@ -2526,7 +2533,7 @@ function initAccessGate(){
     // 자동 포커스 — 폰에서 키보드가 안 뜨면 사용자가 화면 탭하면 뜸
     setTimeout(()=>el.focus(),50);
     // 탭 시 다시 포커스
-    document.getElementById('accessGate').addEventListener('click',e=>{if(e.target.closest('a'))return;el.focus();});
+    document.getElementById('accessGate').addEventListener('click',e=>{if(e.target.closest('a'))return;accBuf='';accStage=1;el.focus();});
   }
 }
 
