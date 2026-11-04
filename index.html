@@ -2424,6 +2424,7 @@ function lockAdmin(){
   mode='user';
   sessionStorage.removeItem('jslamp_admin_ok');
   sessionStorage.removeItem('jslamp_rep_ok');
+  if(isRemembered()){forgetDevice();sessionStorage.removeItem('jslamp_access_ok');alert('이 기기 기억을 해제했습니다.\n다음 접속부터 다시 비번을 입력합니다.');}
   repUnlocked=false;
   const b=document.getElementById('adminBadge'); if(b)b.classList.remove('show');
   showView('home');
@@ -2468,11 +2469,35 @@ let accStage=0;  // 0: 대기 (첫 Enter 기다림), 1: 비번 입력 중
 let accBuf='';
 let accTimer=null;
 function accReset(){accStage=0;accBuf='';if(accTimer){clearTimeout(accTimer);accTimer=null;}}
+/* ===== 이 기기 기억하기 (접속 비번만, 7일) ===== */
+const REMEMBER_DAYS=7;
+const REMEMBER_KEY='jslamp_access_remember';
+const ACCESS_VER=ACCESS_PWS.join('|');      // 비번을 바꾸면 저장된 기기 전부 자동 해제
+function isRemembered(){
+  try{
+    const r=JSON.parse(localStorage.getItem(REMEMBER_KEY)||'null');
+    if(r&&r.v===ACCESS_VER&&r.exp>Date.now())return true;
+    if(r)localStorage.removeItem(REMEMBER_KEY);   // 만료·비번변경 → 정리
+  }catch(e){}
+  return false;
+}
+function rememberDevice(){
+  try{localStorage.setItem(REMEMBER_KEY,JSON.stringify({v:ACCESS_VER,exp:Date.now()+REMEMBER_DAYS*864e5}));}catch(e){}
+}
+function forgetDevice(){try{localStorage.removeItem(REMEMBER_KEY);}catch(e){}}
+function askRemember(){
+  if(isRemembered())return;
+  setTimeout(()=>{
+    if(confirm(`이 기기를 ${REMEMBER_DAYS}일 동안 기억할까요?\n\n[확인] ${REMEMBER_DAYS}일간 접속 비번 없이 바로 열림\n[취소] 창을 닫으면 다시 비번 입력\n\n※ 다른 사람이 쓰는 PC라면 [취소]를 누르세요.`)){
+      rememberDevice(); showToast&&showToast();
+    }
+  },400);
+}
 function accCheck(){
   if(ACCESS_PWS.includes(accBuf)){
     sessionStorage.setItem('jslamp_access_ok','1');
     const g=document.getElementById('accessGate');
-    if(g){g.style.transition='opacity 0.3s';g.style.opacity='0';setTimeout(()=>{g.style.display='none';initApp();},300);}
+    if(g){g.style.transition='opacity 0.3s';g.style.opacity='0';setTimeout(()=>{g.style.display='none';initApp();askRemember();},300);}
   }else{
     accReset();
     // 위장 유지 — 오답 메시지도 없음
@@ -2520,6 +2545,7 @@ function handleCovertInput(){
   }
 }
 function initAccessGate(){
+  if(isRemembered())sessionStorage.setItem('jslamp_access_ok','1');
   if(sessionStorage.getItem('jslamp_access_ok')==='1'){
     const g=document.getElementById('accessGate');
     if(g)g.style.display='none';
