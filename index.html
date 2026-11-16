@@ -1381,11 +1381,25 @@ let rowsDate = '';
 const HIST_DAYS=10;  // 저장 기간(날짜 수)
 let history = load('jslamp_inv_hist',[]);  // [{date, rows}] 최대 HIST_DAYS일
 let currentSp = null;
-let mode = sessionStorage.getItem('jslamp_admin_ok')==='1' ? 'admin' : 'user';  // 'user' | 'admin'
+// 관리자 비번(1233)도 이 기기에서 7일 기억 — 7일 안에 다시 들어오면 비번 없이 열리고, 들어올 때마다 7일 연장
+const ADMIN_REM_KEY='jslamp_admin_remember', ADMIN_REM_DAYS=7;
+function adminRemembered(){
+  try{
+    const r=JSON.parse(localStorage.getItem(ADMIN_REM_KEY)||'null');
+    if(r&&r.v===ADMIN_PW&&r.exp>Date.now())return true;   // 1233을 바꾸면 기억된 기기 전부 자동 해제
+    if(r)localStorage.removeItem(ADMIN_REM_KEY);
+  }catch(e){}
+  return false;
+}
+function rememberAdmin(){try{localStorage.setItem(ADMIN_REM_KEY,JSON.stringify({v:ADMIN_PW,exp:Date.now()+ADMIN_REM_DAYS*864e5}));}catch(e){}}
+function forgetAdmin(){try{localStorage.removeItem(ADMIN_REM_KEY);}catch(e){}}
+let mode = (sessionStorage.getItem('jslamp_admin_ok')==='1'||adminRemembered()) ? 'admin' : 'user';  // 'user' | 'admin'
+if(mode==='admin'){sessionStorage.setItem('jslamp_admin_ok','1');rememberAdmin();}
 // 관리자 해제는 이 브라우저 세션 동안 유지 — 앱(탭)을 완전히 닫으면 다시 비번을 받는다
 function setAdmin(){
   mode='admin';
   sessionStorage.setItem('jslamp_admin_ok','1');
+  rememberAdmin();
   const b=document.getElementById('adminBadge'); if(b)b.classList.add('show');
 }
 let view = 'home';
@@ -1479,9 +1493,10 @@ function simN(a,b){return sim(normName(a),normName(b));}
 // 앞 n글자(기본4) 일치 — 짧은 이름은 더 짧은 쪽 길이만큼 비교(최소 2글자)
 function prefixMatch(a,b,n){
   n=n||4;const na=normName(a),nb=normName(b);
-  const k=Math.min(n,na.length,nb.length);
-  if(k<2)return false;
-  return na.slice(0,k)===nb.slice(0,k);
+  if(na.length<2||nb.length<2)return false;
+  // 둘 중 하나라도 n글자보다 짧으면 앞글자 비교 안 함 → 완전히 같을 때만 (한스 ↔ 한 스토어 오매칭 방지)
+  if(na.length<n||nb.length<n)return na===nb;
+  return na.slice(0,n)===nb.slice(0,n);
 }
 
 /* ============ 파싱 ============
@@ -1533,6 +1548,11 @@ function parseLine(line){
   let waybill=m[1].replace(/[-‐–\.\s]+/g,'-');
   if(!/^\d{3,4}-\d{2,3}-\d{4,6}$/.test(waybill))return null;
   let rest=line.slice(m.index+m[0].length);
+  // 행 종류: 위쪽 화물 행은 송장번호 바로 뒤에 '우리조명' 또는 '품질' 구분열이 있음 (받는분 없이 대리점명만)
+  //   지점 | 송장번호 | 우리조명·품질 | 연락처 | 대리점명 | 운임
+  const kindM=rest.match(/^\s*(우\s*리\s*조\s*[명멍몀]|품\s*질)/);
+  const kind=!kindM?'parcel':(/품/.test(kindM[1])?'quality':'freight');
+  if(kindM)rest=rest.slice(kindM[0].length);
   // 줄 끝 잡음 제거 (OCR이 "7700." 같이 출력 / 중점·따옴표 등)
   rest=rest.replace(/[\.,;:、。「」'"`\s]+$/,'');
   // OCR 보정: 소수점 자리(.00, .5 등) 제거 → 한국식 천단위 . → , 변환
@@ -1549,13 +1569,13 @@ function parseLine(line){
   // 전화번호 + 짧은 국번 제거
   rest=rest.replace(/0\d{1,4}[-\s.]?\d{3,4}[-\s.]?\d{3,4}/g,' ');
   rest=rest.replace(/\d{4,5}[-\s.]\d{3,4}/g,' ');
-  rest=rest.replace(/우리\s*조명/g,' ');
+  rest=rest.replace(/품\s*질/g,' ');
   // 특수문자 제거 (중점·언더스코어·기타 OCR 잡음)
   rest=rest.replace(/[|│:·∙・、。★☆※_~^]/g,' ');
   const mid=rest.trim();
   const toks=mid.split(/\s+/).filter(t=>t.length>=2&&!/^\d+$/.test(t));
   const lastTok=toks.length?toks[toks.length-1]:'';
-  return {mid,lastTok,waybill,fee,phone};
+  return {mid,lastTok,waybill,fee,phone,kind};
 }
 function parseText(t){
   const out=[];lastSkipped=[];
@@ -1619,10 +1639,10 @@ function findBestDealer(text){
   //      ※ 길이가 같고 1글자 substitution이면 자모 거리 ≤1만 허용 (대상전기↔대광전기 같은 오매칭 차단)
   let fbest=null,fscore=99999;
   for(let i=toks.length-1;i>=0;i--){
-    const tk=normName(toks[i]); if(tk.length<2||tk.length>6) continue;
+    const tk=normName(toks[i]); if(tk.length<3||tk.length>6) continue;   // 두 글자 이름은 오타 허용 안 함(한스↔한승)
     for(const d of dealers){
       const dn=normName(d.name);
-      if(dn.length<2||dn.length>6) continue;
+      if(dn.length<3||dn.length>6) continue;
       if(Math.abs(dn.length-tk.length)>1) continue;
       const lv=lev(dn,tk);
       if(lv>1) continue;
@@ -1646,17 +1666,21 @@ function ingest(parsed){
     if(!p.waybill){lastSkipped.push({line:p.mid||'',reason:'송장번호 없음'});return;}
     const hasFee=p.fee!=null&&p.fee>0;
     if(!includeZero&&!hasFee){lastSkipped.push({line:p.mid+' / 송장 '+p.waybill,reason:'택배비 0원·미표기'});return;}
+    const isFreight=p.kind==='freight'||p.kind==='quality';
     let dealer=findBestDealer(p.mid);
     if(!dealer&&p.lastTok){const r=matchDealer(p.lastTok);if(r.dealer&&r.score>=0.6)dealer=r.dealer;}
+    if(!dealer&&isFreight){const r=matchDealer(p.mid);if(r.dealer&&r.score>=0.7)dealer=r.dealer;}
     let store,sp,status;
     if(dealer){store=dealer.name;sp=dealer.sp;status='ok';}
+    else if(isFreight){store=(p.kind==='quality'?'[품질] ':'')+p.mid;sp='';status='warn';}   // 화물 행은 칸 전체가 대리점명
     else{store=p.lastTok||p.mid.split(/\s+/).pop()||'';sp='';status='warn';}
     if(!store){lastSkipped.push({line:p.mid+' / 송장 '+p.waybill,reason:'대리점명 추출 실패'});return;}
-    const recipient=cleanRecipient(p.mid,store);
+    // 화물 행은 받는분 칸이 없음. 품질 행이 대리점과 매칭 안 되면 그 이름을 받는분으로 남김
+    const recipient=isFreight?(p.kind==='quality'&&!dealer?p.mid:''):cleanRecipient(p.mid,store);
     // 중복 검사: 송장번호+대리점+받는분+택배비 모두 일치할 때만 (한 필드라도 다르면 살림)
     const dup=rows.find(r=>r.waybill===p.waybill&&r.store===store&&(r.recipient||'')===recipient&&(r.fee||0)===(p.fee||0));
     if(dup){lastSkipped.push({line:p.mid+' / 송장 '+p.waybill,reason:'완전 동일 송장 (중복)'});return;}
-    rows.push({store,ocr:p.mid,waybill:p.waybill,fee:p.fee,phone:p.phone||'',recipient,sp,score:dealer?1:0,status,feeWarn:!isReasonableFee(p.fee)});
+    rows.push({store,ocr:p.mid,waybill:p.waybill,fee:p.fee,phone:p.phone||'',recipient,sp,score:dealer?1:0,status,kind:isFreight?'freight':'parcel',feeWarn:isFreight?false:!isReasonableFee(p.fee)});   // 화물 운임은 기준 금액 검사 제외
   });
   saveHistory();renderResult(lastSkipped.length);
 }
@@ -2021,6 +2045,7 @@ function renderResult(skipped){
   let html=`<thead><tr><th>대리점명</th><th>송장번호</th><th>택배비</th><th>영업사원</th><th>상태</th><th></th></tr></thead><tbody>`;
   rows.forEach((r,i)=>{
     const pill=r.status==='ok'?'<span class="pill ok">매칭</span>':r.status==='mid'?'<span class="pill mid">확인</span>':'<span class="pill warn">확인필요</span>';
+    const kindTag=r.kind==='freight'?'<span class="pill mid" style="margin-left:3px">화물</span>':'';
     const feeBg=r.feeWarn?'background:#fff3e0;border:1px solid #f3a847':'';
     const feeIcon=r.feeWarn?'<span title="기본 금액(3,850/5,060/6,600/7,700) 또는 그 배수가 아님" style="color:#c14242;margin-right:3px">⚠</span>':'';
     html+=`<tr>
@@ -2028,7 +2053,7 @@ function renderResult(skipped){
       <td><input class="wb" value="${esc(r.waybill)}" onchange="editRow(${i},'waybill',this.value)" style="min-width:158px;font-family:ui-monospace,monospace;letter-spacing:-0.3px"></td>
       <td style="white-space:nowrap">${feeIcon}<input class="wb" value="${r.fee==null?'':r.fee}" onchange="editRow(${i},'fee',this.value)" style="min-width:60px;text-align:right;${feeBg}" inputmode="numeric"></td>
       <td><select onchange="editRow(${i},'sp',this.value)" style="min-width:76px">${spSelectOptions(r.sp)}</select></td>
-      <td>${pill}</td><td><button class="delx" onclick="delRow(${i})">×</button></td></tr>`;
+      <td style="white-space:nowrap">${pill}${kindTag}</td><td><button class="delx" onclick="delRow(${i})">×</button></td></tr>`;
   });
   tbl.innerHTML=html+`</tbody>`;
   if(typeof renderCompare==='function')renderCompare();
@@ -2090,7 +2115,12 @@ function buildMsg(store,items){
   const multi=items.length>1;
   const detail=items.map((it,i)=>{
     const num=multi?(i+1)+') ':'';
-    let l='📦 '+num+'송장: '+it.wb;
+    let l='📦 '+num+'송장: '+it.wb+(it.kind==='freight'?' (화물)':'');
+    if(it.kind==='freight'){
+      if(it.recipient)l+='\n   받는분: '+it.recipient;
+      if(it.fee!=null)l+='\n   운임: '+fmtFee(it.fee);
+      return l;
+    }
     if(it.recipient)l+='\n   받는분: '+it.recipient+(it.phone?' ('+it.phone+')':'');
     else if(it.phone)l+='\n   전화: '+it.phone;
     if(it.fee!=null)l+='\n   택배비: '+fmtFee(it.fee);
@@ -2107,7 +2137,7 @@ let sendItems=[];
 function renderSendList(){
   const wrap=document.getElementById('sendList');
   if(!currentSp){wrap.innerHTML='';return;}
-  const map={};rows.forEach(r=>{if(r.sp===currentSp&&r.waybill)(map[r.store]=map[r.store]||[]).push({wb:r.waybill,fee:r.fee,phone:r.phone||'',recipient:r.recipient||''});});
+  const map={};rows.forEach(r=>{if(r.sp===currentSp&&r.waybill)(map[r.store]=map[r.store]||[]).push({wb:r.waybill,fee:r.fee,phone:r.phone||'',recipient:r.recipient||'',kind:r.kind||'parcel'});});
   const stores=Object.keys(map);
   if(!stores.length){wrap.innerHTML=`<div class="empty"><div class="big">📭</div><b>${esc(currentSp)}</b> 담당 대리점 중<br>오늘 송장이 있는 곳이 없어요.</div>`;return;}
   sendItems=[];
@@ -2182,7 +2212,7 @@ function renderLookupResult(){
       html+=`<div class="empty"><div class="big">📭</div>이 대리점은 최근 ${HIST_DAYS}일간 송장 내역이 없습니다.</div>`;
     }
   }
-  else shown.forEach(r=>{html+=`<div class="lk-item"><div><span class="wb">${esc(r.waybill)}</span>${r.recipient?'<span style="font-size:12px;color:var(--sub);margin-left:8px">'+esc(r.recipient)+'</span>':''}</div><div style="text-align:right"><span class="fee">${fmtFee(r.fee)}</span><div style="font-size:10px;color:var(--sub)">${fmtDate(r._date||'')}</div></div></div>`;});
+  else shown.forEach(r=>{html+=`<div class="lk-item"><div><span class="wb">${esc(r.waybill)}</span>${r.kind==='freight'?'<span style="font-size:12px;color:var(--sub);margin-left:8px">🚚 화물</span>':(r.recipient?'<span style="font-size:12px;color:var(--sub);margin-left:8px">'+esc(r.recipient)+'</span>':'')}</div><div style="text-align:right"><span class="fee">${fmtFee(r.fee)}</span><div style="font-size:10px;color:var(--sub)">${fmtDate(r._date||'')}</div></div></div>`;});
   out.innerHTML=html;
 }
 function doLookup(){
@@ -2424,7 +2454,9 @@ function lockAdmin(){
   mode='user';
   sessionStorage.removeItem('jslamp_admin_ok');
   sessionStorage.removeItem('jslamp_rep_ok');
-  if(isRemembered()){forgetDevice();sessionStorage.removeItem('jslamp_access_ok');alert('이 기기 기억을 해제했습니다.\n다음 접속부터 다시 비번을 입력합니다.');}
+  const had=isRemembered()||adminRemembered();
+  forgetDevice();forgetAdmin();sessionStorage.removeItem('jslamp_access_ok');
+  if(had)alert('이 기기 기억을 해제했습니다.\n다음 접속부터 1198·1233을 다시 입력합니다.');
   repUnlocked=false;
   const b=document.getElementById('adminBadge'); if(b)b.classList.remove('show');
   showView('home');
@@ -2450,10 +2482,11 @@ function bindDoubleTap(el,cb){
 bindDoubleTap(document.getElementById('titleArea'),()=>{if(mode!=='admin')openPwFor(()=>{setAdmin();showView('input');});});
 bindDoubleTap(document.getElementById('logo'),()=>{if(mode!=='admin')openPwFor(()=>{setAdmin();showView('input');});});
 // 담당자 코드 표시
-let repUnlocked = sessionStorage.getItem('jslamp_rep_ok')==='1';
+let repUnlocked = sessionStorage.getItem('jslamp_rep_ok')==='1' || adminRemembered();
 function showReps(){
   repUnlocked=true;
   sessionStorage.setItem('jslamp_rep_ok','1');
+  rememberAdmin();
   const b=document.getElementById('repOpenBtn'); if(b)b.style.display='none';
   const g=document.getElementById('repGridWrap'); if(g)g.style.display='block';
 }
@@ -2469,7 +2502,7 @@ let accStage=0;  // 0: 대기 (첫 Enter 기다림), 1: 비번 입력 중
 let accBuf='';
 let accTimer=null;
 function accReset(){accStage=0;accBuf='';if(accTimer){clearTimeout(accTimer);accTimer=null;}}
-/* ===== 이 기기 기억하기 (접속 비번만, 7일) ===== */
+/* ===== 이 기기 기억하기 (1198, 7일) ===== */
 const REMEMBER_DAYS=7;
 const REMEMBER_KEY='jslamp_access_remember';
 const ACCESS_VER=ACCESS_PWS.join('|');      // 비번을 바꾸면 저장된 기기 전부 자동 해제
@@ -2485,14 +2518,7 @@ function rememberDevice(){
   try{localStorage.setItem(REMEMBER_KEY,JSON.stringify({v:ACCESS_VER,exp:Date.now()+REMEMBER_DAYS*864e5}));}catch(e){}
 }
 function forgetDevice(){try{localStorage.removeItem(REMEMBER_KEY);}catch(e){}}
-function askRemember(){
-  if(isRemembered())return;
-  setTimeout(()=>{
-    if(confirm(`이 기기를 ${REMEMBER_DAYS}일 동안 기억할까요?\n\n[확인] ${REMEMBER_DAYS}일간 접속 비번 없이 바로 열림\n[취소] 창을 닫으면 다시 비번 입력\n\n※ 다른 사람이 쓰는 PC라면 [취소]를 누르세요.`)){
-      rememberDevice(); showToast&&showToast();
-    }
-  },400);
-}
+function askRemember(){rememberDevice();}   // 1198 입력하면 묻지 않고 7일 기억
 function accCheck(){
   if(ACCESS_PWS.includes(accBuf)){
     sessionStorage.setItem('jslamp_access_ok','1');
@@ -2545,7 +2571,7 @@ function handleCovertInput(){
   }
 }
 function initAccessGate(){
-  if(isRemembered())sessionStorage.setItem('jslamp_access_ok','1');
+  if(isRemembered()){sessionStorage.setItem('jslamp_access_ok','1');rememberDevice();}   // 들어올 때마다 7일 연장
   if(sessionStorage.getItem('jslamp_access_ok')==='1'){
     const g=document.getElementById('accessGate');
     if(g)g.style.display='none';
